@@ -15,7 +15,8 @@ the same meeting actions in every supported app.
 ## What it does
 
 - Displays live input level across the Micro's backlight and underglow.
-- Shows exact dBFS level and hardware gain in the macOS menu bar.
+- Shows a compact, color-coded waveform in the macOS menu bar.
+- Keeps exact dBFS level and hardware gain inside the menu.
 - Changes PodMic hardware gain without opening RØDE Central or RØDE Connect.
 - Routes the same six physical buttons to the frontmost meeting app.
 - Keeps the original Codex profile and its agent-status lighting intact.
@@ -32,7 +33,20 @@ The device uses a color-plus-motion meter:
 | Red | -1 dBFS or higher | Clipping risk |
 
 Brightness changes within each band, so the device still moves like a meter.
-The menu bar keeps the exact values visible.
+The menu-bar waveform changes color only when the input crosses a level band,
+so its width stays fixed and it does not flicker with every sample.
+
+### Menu-bar display
+
+Open **Menu Bar Display** in the CodexMic menu to choose:
+
+- **Waveform Only** — the smallest option and the default.
+- **Waveform and Gain** — the waveform plus hardware gain.
+- **Gain Only** — hardware gain without an icon.
+- **Full Detail** — waveform, live dBFS level, and hardware gain.
+
+CodexMic remembers the selection between launches. In every mode, the dropdown
+keeps the exact live level and gain visible.
 
 ## Requirements
 

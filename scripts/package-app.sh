@@ -25,7 +25,8 @@ xattr -cr "$staging_app"
 codesign --force --deep --sign - "$staging_app"
 codesign --verify --deep --strict "$staging_app"
 ditto --norsrc "$staging_app" "$app_dir"
-xattr -d com.apple.FinderInfo "$app_dir" 2>/dev/null || true
+xattr -cr "$app_dir"
+codesign --force --deep --sign - "$app_dir"
 codesign --verify --deep --strict "$app_dir"
 
 echo "$app_dir"

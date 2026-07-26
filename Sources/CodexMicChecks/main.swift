@@ -100,6 +100,38 @@ do {
   )
 
   try require(
+    StatusBarDisplayMode.waveformOnly.showsWaveform
+      && StatusBarDisplayMode.waveformOnly.menuBarTitle(
+        levelText: "-12",
+        gainText: "55"
+      ).isEmpty,
+    "Waveform-only mode should use the compact icon"
+  )
+  try require(
+    StatusBarDisplayMode.waveformAndGain.showsWaveform
+      && StatusBarDisplayMode.waveformAndGain.menuBarTitle(
+        levelText: "-12",
+        gainText: "55"
+      ) == "55 dB",
+    "Waveform-and-gain mode should show the icon and gain"
+  )
+  try require(
+    !StatusBarDisplayMode.gainOnly.showsWaveform
+      && StatusBarDisplayMode.gainOnly.menuBarTitle(
+        levelText: "-12",
+        gainText: "55"
+      ) == "55 dB",
+    "Gain-only mode should omit the icon"
+  )
+  try require(
+    StatusBarDisplayMode.fullDetail.menuBarTitle(
+      levelText: "-12",
+      gainText: "55"
+    ) == "-12 dBFS · 55 dB",
+    "Full-detail mode should show both exact readings"
+  )
+
+  try require(
     MeetingApplication(
       bundleIdentifier:
         "com.google.Chrome.app.kjgfgldnnfoeklkmfkjfagphfepbbdan"

@@ -22,6 +22,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var hotKeyStatusMessage: String?
   private var meetingStatusMessage: String?
   private var lightingStatusMessage = "off"
+  private var statusBarDisplayMode: StatusBarDisplayMode = {
+    guard
+      let rawValue = UserDefaults.standard.string(
+        forKey: "statusBarDisplayMode"
+      ),
+      let mode = StatusBarDisplayMode(rawValue: rawValue)
+    else {
+      return .waveformOnly
+    }
+    return mode
+  }()
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.accessory)
@@ -116,7 +127,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func buildMenu() {
-    statusItem.button?.imagePosition = .imageLeading
     statusItem.button?.font = .monospacedDigitSystemFont(
       ofSize: NSFont.systemFontSize,
       weight: .regular
@@ -170,6 +180,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     menu.addItem(lighting)
 
     menu.addItem(.separator())
+    let displayItem = NSMenuItem(
+      title: "Menu Bar Display",
+      action: nil,
+      keyEquivalent: ""
+    )
+    let displayMenu = NSMenu(title: "Menu Bar Display")
+    for mode in StatusBarDisplayMode.allCases {
+      let item = NSMenuItem(
+        title: mode.title,
+        action: #selector(selectStatusBarDisplay(_:)),
+        keyEquivalent: ""
+      )
+      item.representedObject = mode.rawValue
+      item.state = mode == statusBarDisplayMode ? .on : .off
+      displayMenu.addItem(item)
+    }
+    displayItem.submenu = displayMenu
+    menu.addItem(displayItem)
+
+    menu.addItem(.separator())
     menu.addItem(
       withTitle: "Gain +1 dB   (F19)",
       action: #selector(gainUp),
@@ -217,6 +247,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   @objc private func gainDown() {
     changeGain(by: -1)
+  }
+
+  @objc private func selectStatusBarDisplay(_ sender: NSMenuItem) {
+    guard
+      let rawValue = sender.representedObject as? String,
+      let mode = StatusBarDisplayMode(rawValue: rawValue)
+    else {
+      return
+    }
+
+    statusBarDisplayMode = mode
+    UserDefaults.standard.set(
+      mode.rawValue,
+      forKey: "statusBarDisplayMode"
+    )
+    updateStatusBarDisplayMenu()
+    refresh()
+  }
+
+  private func updateStatusBarDisplayMenu() {
+    guard
+      let displayMenu = statusItem.menu?
+        .items
+        .first(where: { $0.title == "Menu Bar Display" })?
+        .submenu
+    else {
+      return
+    }
+
+    for item in displayMenu.items {
+      item.state =
+        item.representedObject as? String == statusBarDisplayMode.rawValue
+        ? .on
+        : .off
+    }
   }
 
   private func handle(_ action: GlobalHotKeys.Action) {
@@ -269,10 +334,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let levelText = String(format: "%.0f", level)
     let gainText = gain.map { String(format: "%.0f", $0) } ?? "--"
 
-    statusItem.button?.image = meterImage(for: level)
-    statusItem.button?.title = "\(levelText)  \(gainText)dB"
+    let showsWaveform = statusBarDisplayMode.showsWaveform
+    statusItem.button?.image = showsWaveform
+      ? waveformImage(for: level)
+      : nil
+    statusItem.button?.title = statusBarDisplayMode.menuBarTitle(
+      levelText: levelText,
+      gainText: gainText
+    )
+    statusItem.button?.imagePosition =
+      showsWaveform
+      ? (statusItem.button?.title.isEmpty == true ? .imageOnly : .imageLeading)
+      : .noImage
     statusItem.button?.toolTip =
       "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+    statusItem.button?.setAccessibilityLabel(
+      "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+    )
     statusItem.menu?.item(withTag: 101)?.title =
       "Live level: \(levelText) dBFS"
     statusItem.menu?.item(withTag: 102)?.title =
@@ -297,8 +375,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func meterImage(for level: Float) -> NSImage {
-    let size = NSSize(width: 27, height: 14)
+  private func waveformImage(for level: Float) -> NSImage? {
     let band = MeterBand.classify(levelDB: level)
     let color: NSColor
     switch band {
@@ -314,34 +391,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       color = .systemRed
     }
 
-    let normalized = max(0, min(1, (level + 60) / 60))
-    let activeBars =
-      band == .silent
-      ? 0
-      : max(1, Int(ceil(normalized * 5)))
-
-    let image = NSImage(size: size, flipped: false) { _ in
-      for index in 0..<5 {
-        let height = CGFloat(4 + index * 2)
-        let rect = NSRect(
-          x: CGFloat(index * 5 + 1),
-          y: 1,
-          width: 3,
-          height: height
-        )
-        let barColor =
-          index < activeBars
-          ? color
-          : NSColor.tertiaryLabelColor.withAlphaComponent(0.45)
-        barColor.setFill()
-        NSBezierPath(
-          roundedRect: rect,
-          xRadius: 1,
-          yRadius: 1
-        ).fill()
-      }
-      return true
+    guard
+      let symbol = NSImage(
+        systemSymbolName: "waveform",
+        accessibilityDescription: "Microphone level"
+      )
+    else {
+      return nil
     }
+    let sizeConfiguration = NSImage.SymbolConfiguration(
+      pointSize: 14,
+      weight: .medium
+    )
+    let colorConfiguration = NSImage.SymbolConfiguration(
+      paletteColors: [color]
+    )
+    let configuration = sizeConfiguration.applying(colorConfiguration)
+    let image = symbol.withSymbolConfiguration(configuration) ?? symbol
     image.isTemplate = false
     return image
   }
