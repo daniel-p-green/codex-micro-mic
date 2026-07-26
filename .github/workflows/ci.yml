@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: swift build
+      - name: Run deterministic checks
+        run: swift run CodexMicChecks
+      - name: Validate lighting sidecar
+        run: node --check support/codex-micro-lighting-service.js
+      - name: Validate app metadata
+        run: plutil -lint support/Info.plist
+      - name: Package and verify app
+        run: scripts/package-app.sh
