@@ -26,6 +26,16 @@ final class CodexMicroLighting {
   func start() {
     guard connection == nil else { return }
 
+    let inputEditorIsOpen = NSRunningApplication
+      .runningApplications(
+        withBundleIdentifier: "it.focusense.input-app"
+      )
+      .contains { $0.activationPolicy == .regular }
+    guard !inputEditorIsOpen else {
+      report("waiting; quit Input editor")
+      return
+    }
+
     let inputExecutable = URL(
       fileURLWithPath: "/Applications/input.app/Contents/MacOS/input"
     )
@@ -133,15 +143,38 @@ final class CodexMicroLighting {
 
   private func consume(_ message: String) {
     if message == "PROFILE 1" {
-      report("live")
+      if lastStatus?.hasPrefix("live") != true {
+        report("profile ready")
+      }
     } else if message.hasPrefix("PROFILE ") {
       report("paused; select Meetings profile")
     } else if message == "CONNECTED" {
       report("connected")
     } else if message.hasPrefix("APPLIED ") {
-      report("live")
+      let fields = message.split(separator: " ")
+      if fields.count == 3,
+        let color = Int(fields[1]),
+        let brightness = Double(fields[2])
+      {
+        report(
+          "live · \(colorName(color)) \(Int((brightness * 100).rounded()))%"
+        )
+      } else {
+        report("live")
+      }
     } else if message.hasPrefix("ERROR ") {
       report(String(message.dropFirst(6)))
+    }
+  }
+
+  private func colorName(_ color: Int) -> String {
+    switch color {
+    case LightingMeter.gray: "gray"
+    case LightingMeter.blue: "blue"
+    case LightingMeter.green: "green"
+    case LightingMeter.orange: "orange"
+    case LightingMeter.red: "red"
+    default: String(format: "#%06X", color)
     }
   }
 

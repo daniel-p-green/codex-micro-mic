@@ -50,44 +50,44 @@ do {
   )
 
   try require(
-    MeterBand.classify(levelDB: -60) == .silent,
-    "-60 dBFS should be silent"
+    MeterBand.classify(levelDB: -65) == .silent,
+    "-65 dBFS should be silent"
   )
   try require(
-    MeterBand.classify(levelDB: -30) == .quiet,
-    "-30 dBFS should be quiet"
+    MeterBand.classify(levelDB: -45) == .quiet,
+    "-45 dBFS should be quiet"
   )
   try require(
-    MeterBand.classify(levelDB: -12) == .healthy,
-    "-12 dBFS should be healthy"
+    MeterBand.classify(levelDB: -20) == .healthy,
+    "-20 dBFS should be healthy"
   )
   try require(
-    MeterBand.classify(levelDB: -3) == .hot,
-    "-3 dBFS should be hot"
+    MeterBand.classify(levelDB: -6) == .hot,
+    "-6 dBFS should be hot"
   )
   try require(
     MeterBand.classify(levelDB: -0.5) == .clipping,
     "-0.5 dBFS should indicate clipping risk"
   )
 
-  let silentLight = LightingMeter.sample(levelDB: -60)
+  let silentLight = LightingMeter.sample(levelDB: -65)
   try require(
     silentLight == LightingSample(color: LightingMeter.gray, brightness: 0.1),
     "Silence should be dim gray"
   )
-  let quietLight = LightingMeter.sample(levelDB: -35)
+  let quietLight = LightingMeter.sample(levelDB: -45)
   try require(
     quietLight.color == LightingMeter.blue
-      && quietLight.brightness == 0.35,
+      && quietLight.brightness == 0.4,
     "Quiet audio should be blue with quantized brightness"
   )
-  let healthyLight = LightingMeter.sample(levelDB: -12)
+  let healthyLight = LightingMeter.sample(levelDB: -20)
   try require(
     healthyLight.color == LightingMeter.green
       && healthyLight.brightness == 0.7,
     "Healthy speech should be green"
   )
-  let hotLight = LightingMeter.sample(levelDB: -3)
+  let hotLight = LightingMeter.sample(levelDB: -6)
   try require(
     hotLight.color == LightingMeter.orange
       && hotLight.brightness == 0.9,
@@ -97,6 +97,22 @@ do {
     LightingMeter.sample(levelDB: -0.5)
       == LightingSample(color: LightingMeter.red, brightness: 1),
     "Clipping risk should be full-brightness red"
+  )
+  try require(
+    MeterMath.envelope(
+      previous: -20,
+      fresh: -60,
+      elapsedSeconds: 0.5
+    ) == -29,
+    "The meter envelope should release by 18 dB per second"
+  )
+  try require(
+    MeterMath.envelope(
+      previous: -40,
+      fresh: -15,
+      elapsedSeconds: 0.01
+    ) == -15,
+    "The meter envelope should attack immediately"
   )
 
   try require(

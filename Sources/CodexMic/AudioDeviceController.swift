@@ -24,6 +24,7 @@ final class AudioDeviceController {
 
   let deviceID: AudioDeviceID
   let deviceName: String
+  let deviceUID: String
 
   init(matching name: String = AudioDeviceController.podMicName) throws {
     for id in try Self.deviceIDs() {
@@ -31,6 +32,7 @@ final class AudioDeviceController {
       if (try? Self.readName(id)) == name {
         deviceID = id
         deviceName = name
+        deviceUID = try Self.readUID(id)
         return
       }
     }
@@ -204,6 +206,30 @@ final class AudioDeviceController {
           $0
         ),
         "Read audio-device name"
+      )
+    }
+    return value as String
+  }
+
+  private static func readUID(_ id: AudioDeviceID) throws -> String {
+    var address = AudioObjectPropertyAddress(
+      mSelector: kAudioDevicePropertyDeviceUID,
+      mScope: kAudioObjectPropertyScopeGlobal,
+      mElement: kAudioObjectPropertyElementMain
+    )
+    var value: CFString = "" as CFString
+    var size = UInt32(MemoryLayout<CFString>.size)
+    try withUnsafeMutablePointer(to: &value) {
+      try check(
+        AudioObjectGetPropertyData(
+          id,
+          &address,
+          0,
+          nil,
+          &size,
+          $0
+        ),
+        "Read audio-device UID"
       )
     }
     return value as String

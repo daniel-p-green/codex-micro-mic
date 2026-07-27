@@ -30,21 +30,21 @@ public enum LightingMeter {
       color = blue
       brightness = scaled(
         levelDB,
-        input: -50 ... -20,
-        output: 0.15 ... 0.50
+        input: -60 ... -30,
+        output: 0.20 ... 0.55
       )
     case .healthy:
       color = green
       brightness = scaled(
         levelDB,
-        input: -20 ... -6,
-        output: 0.55 ... 0.80
+        input: -30 ... -12,
+        output: 0.60 ... 0.82
       )
     case .hot:
       color = orange
       brightness = scaled(
         levelDB,
-        input: -6 ... -1,
+        input: -12 ... -3,
         output: 0.85 ... 0.95
       )
     case .clipping:

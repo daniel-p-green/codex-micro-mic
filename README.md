@@ -29,13 +29,14 @@ The device uses a color-plus-motion meter:
 
 | Color | Input level | Meaning |
 |---|---:|---|
-| Dim gray | Below -50 dBFS | Silence |
-| Blue | -50 to -20 dBFS | Quiet |
-| Green | -20 to -6 dBFS | Healthy speech |
-| Orange | -6 to -1 dBFS | Hot |
-| Red | -1 dBFS or higher | Clipping risk |
+| Dim gray | Below -60 dBFS | Silence |
+| Blue | -60 to -30 dBFS | Quiet |
+| Green | -30 to -12 dBFS | Healthy speech |
+| Orange | -12 to -3 dBFS | Hot |
+| Red | -3 dBFS or higher | Clipping risk |
 
-Brightness changes within each band, so the device still moves like a meter.
+Brightness changes within each band, and a time-based release keeps speech
+peaks visible long enough for the physical device to show them.
 The menu-bar waveform changes color only when the input crosses a level band,
 so its width stays fixed and it does not flicker with every sample. The default
 is **Waveform Only**, so no changing dB number occupies the menu bar while you
@@ -203,7 +204,8 @@ flowchart LR
 
 The Swift menu-bar app performs three jobs:
 
-1. It meters the selected PodMic input with `AVAudioEngine`.
+1. It meters the selected PodMic input with an audio-only
+   `AVCaptureSession` and confirms that sample buffers are arriving.
 2. It reads and writes the PodMic's Core Audio gain property.
 3. It translates global F13-F20 hotkeys and Call Deck buttons into
    app-specific meeting shortcuts.
@@ -258,6 +260,9 @@ In a non-production call, Call Deck should show:
 - `MICRO LIGHTING live` after Call Mode starts and the Meetings profile is
   active.
 - A changing level meter and current PodMic gain.
+- A clear `No audio samples` diagnostic if Core Audio starts without delivering
+  microphone buffers; a helper status of `live` alone is not treated as proof
+  that the physical meter is moving.
 - `Toggle mic sent to <app> · app state unverified` after a microphone command.
 
 Test the six meeting buttons in a non-production call before relying on them.
@@ -267,9 +272,11 @@ Meeting applications can change shortcuts between releases.
 
 ### Input is open
 
-Input can stay open. CodexMic uses Input's device runtime in a separate helper
-process, so it no longer requires you to quit the Input editor before the
-Codex Micro can display its live level.
+Use Input to edit or upload the Meetings profile, then quit the Input editor
+while CodexMic meters. Both processes can address the same device, but Input's
+static lighting can overwrite the temporary live-level previews. Call Deck
+shows `Quit Input to release device lighting` and starts the meter
+automatically after the editor closes.
 
 ### Lighting stays on `connecting`
 

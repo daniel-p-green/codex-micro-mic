@@ -28,6 +28,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   // stays compact and the user can still pause device lighting explicitly.
   private var callMode: CallMode = .active
   private var lightingIsRequested = false
+  private var lastMeterHealthLogAt = Date.distantPast
   private var statusBarDisplayMode: StatusBarDisplayMode = {
     guard
       let rawValue = UserDefaults.standard.string(
@@ -106,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard let controller else { return }
     do {
       let meter = AudioMeter()
-      try meter.start(deviceID: controller.deviceID)
+      try meter.start(deviceUID: controller.deviceUID)
       self.meter = meter
       let lighting = CodexMicroLighting { [weak self] status in
         self?.lightingStatusMessage = status
@@ -307,6 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let gainText = gain.map { String(format: "%.0f", $0) } ?? "--"
 
     let callModeIsLive = callMode.isActive && meter != nil
+    updateMeterHealth()
     let showsWaveform = statusBarDisplayMode.showsWaveform && callModeIsLive
     statusItem.button?.image = showsWaveform
       ? waveformImage(for: level)
@@ -347,6 +349,29 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ))
   }
 
+  private func updateMeterHealth() {
+    guard let health = meter?.health else { return }
+    let now = Date()
+    guard now.timeIntervalSince(lastMeterHealthLogAt) >= 2 else { return }
+    lastMeterHealthLogAt = now
+
+    let age = health.secondsSinceLastBuffer.map {
+      String(format: "%.1f", $0)
+    } ?? "never"
+    logger.notice(
+      "Meter health: level=\(health.levelDB, privacy: .public) dBFS buffers=\(health.bufferCount, privacy: .public) lastBufferAge=\(age, privacy: .public)s"
+    )
+
+    if health.secondsSinceStart >= 3, !health.isReceivingAudio {
+      audioStatusMessage =
+        "No audio samples from RØDE PodMic USB; check microphone access or reconnect the mic"
+    } else if health.isReceivingAudio,
+      audioStatusMessage?.hasPrefix("No audio samples") == true
+    {
+      audioStatusMessage = nil
+    }
+  }
+
   private var readinessText: String {
     if !meetingController.hasAccessibilityPermission {
       return "SETUP  Enable Accessibility for meeting controls"
@@ -356,6 +381,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
     if lightingStatusMessage == "paused; select Meetings profile" {
       return "MICRO  Select the Meetings profile in Input"
+    }
+    if lightingStatusMessage == "waiting; quit Input editor" {
+      return "MICRO  Quit Input to release device lighting"
     }
     guard let app = meetingController.activeApplication else {
       return "READY  Bring Zoom or Google Meet forward"
@@ -367,6 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if !meetingController.hasAccessibilityPermission
       || (callMode.isActive && meter == nil)
       || lightingStatusMessage == "paused; select Meetings profile"
+      || lightingStatusMessage == "waiting; quit Input editor"
     {
       return .systemOrange
     }
