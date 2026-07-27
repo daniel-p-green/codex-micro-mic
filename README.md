@@ -43,9 +43,11 @@ are not using the mic.
 
 ### Call Deck and menu-bar display
 
-Click the menu-bar waveform to open **Call Deck**. It only enables meeting
-controls when the frontmost app is Zoom or the dedicated Google Meet Chrome
-app. That makes the target visible before a shortcut is sent and avoids
+Click the CodexMic menu-bar icon to open **Call Deck**. The native popover has
+a fixed, compact layout so it stays readable instead of collapsing into a
+narrow strip. It only enables a meeting control when its target app is in
+front: Zoom, the dedicated Google Meet Chrome app, Roam, or Microsoft Teams.
+That makes the target visible before a shortcut is sent and avoids
 accidentally sending controls into an unrelated app.
 
 If controls are disabled, choose **Enable meeting controls…** in Call Deck to
@@ -57,9 +59,10 @@ If an ad-hoc rebuild causes the live meter to lose microphone access, use
 **Enable microphone meter…** in Call Deck to open the relevant macOS privacy
 setting.
 
-The deck reports that a command was sent, not that the meeting application
-accepted it. Mute is a toggle owned by Zoom or Google Meet, so CodexMic does
-not show a fake muted/unmuted state.
+The deck labels stateful controls as **Toggle mic** and **Toggle camera**. It
+reports that a command was sent, not that the meeting application accepted it;
+the resulting mute and camera states remain app-owned and explicitly
+unverified.
 
 ### Call Mode
 
@@ -74,9 +77,9 @@ desktop.
 
 Call Deck includes a compact readiness line. It calls out missing Accessibility
 approval, a missing microphone meter, a wrong Micro profile, or the need to
-bring Zoom or the dedicated Google Meet app forward. When it sends a meeting
-shortcut, it says so explicitly but does not pretend to know the application's
-resulting mute or camera state.
+bring a supported meeting app forward. When it sends a meeting shortcut, it
+says so explicitly but does not pretend to know the application's resulting
+mute or camera state.
 
 Use **Menu Bar Display** in Call Deck to choose:
 
@@ -122,9 +125,11 @@ ditto --norsrc .build/CodexMic.app /Applications/CodexMic.app
 open /Applications/CodexMic.app
 ```
 
-macOS asks for Microphone access so CodexMic can read the live level. Add
+CodexMic asks for Microphone access only when you first start Call Mode. Add
 `/Applications/CodexMic.app` under **System Settings > Privacy & Security >
-Accessibility** so it can send meeting shortcuts.
+Accessibility** so it can send meeting shortcuts. Keep this installed bundle
+as the one canonical app; do not grant Accessibility to a temporary `.build`
+copy.
 
 The package is ad-hoc signed. Rebuilding and reinstalling it may cause macOS to
 ask for permissions again.
@@ -145,8 +150,8 @@ Use the same keycodes on every layer:
 
 | Physical control | Keycode | Action |
 |---|---:|---|
-| Large key 1 | F13 | Microphone |
-| Large key 2 | F14 | Camera |
+| Large key 1 | F13 | Toggle mic |
+| Large key 2 | F14 | Toggle camera |
 | Key 3 | F15 | Chat |
 | Key 4 | F16 | Share screen |
 | Key 5 | F17 | Raise or lower hand |
@@ -168,8 +173,8 @@ shortcut:
 
 | Action | Google Meet | Zoom | Teams |
 |---|---|---|---|
-| Microphone | Command-D | Command-Shift-A | Control-Shift-M |
-| Camera | Command-E | Command-Shift-V | Control-Shift-O |
+| Toggle microphone | Command-D | Command-Shift-A | Control-Shift-M |
+| Toggle camera | Command-E | Command-Shift-V | Control-Shift-O |
 | Chat | Control-Command-C | Command-Shift-H | Not assigned |
 | Share screen | Control-Command-T | Command-Shift-S | Control-Shift-E |
 | Raise hand | Control-Command-H | Option-Y | Control-Shift-K |
@@ -248,12 +253,14 @@ packager reports a warning after verifying its clean staging bundle. That is a
 local workspace metadata condition, not a replacement for a successful clean
 bundle verification.
 
-The menu should report:
+In a non-production call, Call Deck should show:
 
-- `Meeting controls: ready`
-- `Micro level lighting: live`
-- A changing `Live level` value
-- The PodMic's current `Hardware gain`
+- A green `READY` line when a supported meeting app is frontmost and
+  Accessibility is enabled.
+- `MICRO LIGHTING live` after Call Mode starts and the Meetings profile is
+  active.
+- A changing level meter and current PodMic gain.
+- `Toggle mic sent to <app> · app state unverified` after a microphone command.
 
 Test the six meeting buttons in a non-production call before relying on them.
 Meeting applications can change shortcuts between releases.
@@ -274,6 +281,20 @@ index `0` untouched.
 
 Enable `/Applications/CodexMic.app` in **System Settings > Privacy & Security >
 Accessibility**, then relaunch CodexMic.
+
+### Accessibility lists duplicate CodexMic entries
+
+This usually comes from granting a temporary build or a renamed copy. Keep
+`/Applications/CodexMic.app` as the only installed copy, then reset only its
+Accessibility record:
+
+```bash
+tccutil reset Accessibility io.github.daniel-p-green.codexmic
+```
+
+Relaunch `/Applications/CodexMic.app`, choose **Enable meeting controls…**, and
+approve the single fresh entry. Do not remove `CodexMicroInputHelper.app`; it
+belongs to Work Louder Input.
 
 ### The PodMic is not found
 
