@@ -1,16 +1,32 @@
 # Codex Micro Mic
 
-Use a Work Louder Codex Micro as a live microphone level meter, hardware gain
-control, and consistent meeting controller for Google Meet, Roam, Zoom, and
+Use a Work Louder Codex Micro as a live microphone level meter, PodMic gain
+control, and experimental meeting controller for Google Meet, Roam, Zoom, and
 Microsoft Teams.
 
-The Micro shows microphone level through color and brightness. Its encoder
-changes the RØDE PodMic USB hardware gain in 1 dB steps, while six keys map to
-the same meeting actions in every supported app.
+The Micro shows microphone level through color and brightness. The app also
+implements 1 dB RØDE PodMic USB gain steps and maps six keys to equivalent
+meeting actions across supported apps.
 
 > [!IMPORTANT]
 > This is an unofficial community project. It is not affiliated with or
 > endorsed by OpenAI, Work Louder, RØDE, Google, Zoom, or Microsoft.
+
+## Project status
+
+The core hardware-meter path is verified on a connected Codex Micro:
+
+- The installed macOS app receives live sample buffers from a RØDE PodMic USB.
+- The Micro's key backlight and underglow follow those levels through the
+  off/green/yellow/red scale below.
+- The device sidecar acknowledges the active Meetings profile and every
+  requested color and brightness value.
+- The deterministic meter checks and repository CI pass.
+
+Meeting shortcuts, physical encoder gain changes, and app routing are
+implemented, but the physical controls have not yet completed an end-to-end
+Zoom and Google Meet call test. CodexMic reports that it sent a command; it
+does not claim that the meeting app changed its mute or camera state.
 
 ## What it does
 
@@ -19,8 +35,9 @@ the same meeting actions in every supported app.
   gain controls, and six meeting controls.
 - Keeps exact dBFS level and hardware gain inside the Call Deck, not in the
   menu bar by default.
-- Changes PodMic hardware gain without opening RØDE Central or RØDE Connect.
-- Routes the same six physical buttons and Call Deck controls to the
+- Implements PodMic hardware-gain changes without opening RØDE Central or
+  RØDE Connect.
+- Maps the same six physical buttons and Call Deck controls to the
   frontmost meeting app.
 - Keeps the original Codex profile and its agent-status lighting intact.
 - Processes microphone levels locally without saving or transmitting audio.
@@ -36,13 +53,27 @@ The device uses a color-plus-motion meter:
 
 Brightness changes within each band, and a time-based release keeps speech
 peaks visible long enough for the physical device to show them.
+
 The Codex Micro itself is the primary meter: CodexMic drives both its key
 backlight and underglow from the live PodMic level. The menu-bar waveform is
 only a compact diagnostic.
+
 The menu-bar waveform changes color only when the input crosses a level band,
 so its width stays fixed and it does not flicker with every sample. The default
 is **Waveform Only**, so no changing dB number occupies the menu bar while you
 are not using the mic.
+
+### 30-second hardware demo
+
+1. Select the **Meetings** profile on the Micro and quit the Input editor.
+2. Launch `/Applications/CodexMic.app`.
+3. Speak into the PodMic and watch the Micro itself move from off to green as
+   brightness follows the input level.
+4. Open Call Deck to show the exact dBFS reading, hardware gain, and the
+   device's acknowledged color and brightness.
+
+Yellow indicates a hot signal and red indicates clipping risk. Do not
+intentionally clip the microphone just to demonstrate red.
 
 ### Call Deck and menu-bar display
 
@@ -126,7 +157,8 @@ ditto --norsrc .build/CodexMic.app /Applications/CodexMic.app
 open /Applications/CodexMic.app
 ```
 
-CodexMic asks for Microphone access only when you first start Call Mode. Add
+CodexMic requests Microphone access on first launch and starts the physical
+meter once access is granted. Add
 `/Applications/CodexMic.app` under **System Settings > Privacy & Security >
 Accessibility** so it can send meeting shortcuts. Keep this installed bundle
 as the one canonical app; do not grant Accessibility to a temporary `.build`
