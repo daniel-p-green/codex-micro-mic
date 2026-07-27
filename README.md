@@ -15,10 +15,13 @@ the same meeting actions in every supported app.
 ## What it does
 
 - Displays live input level across the Micro's backlight and underglow.
-- Shows a compact, color-coded waveform in the macOS menu bar.
-- Keeps exact dBFS level and hardware gain inside the menu.
+- Opens a compact native **Call Deck** from the menu bar, with a live meter,
+  gain controls, and six meeting controls.
+- Keeps exact dBFS level and hardware gain inside the Call Deck, not in the
+  menu bar by default.
 - Changes PodMic hardware gain without opening RØDE Central or RØDE Connect.
-- Routes the same six physical buttons to the frontmost meeting app.
+- Routes the same six physical buttons and Call Deck controls to the
+  frontmost meeting app.
 - Keeps the original Codex profile and its agent-status lighting intact.
 - Processes microphone levels locally without saving or transmitting audio.
 
@@ -34,11 +37,40 @@ The device uses a color-plus-motion meter:
 
 Brightness changes within each band, so the device still moves like a meter.
 The menu-bar waveform changes color only when the input crosses a level band,
-so its width stays fixed and it does not flicker with every sample.
+so its width stays fixed and it does not flicker with every sample. The default
+is **Waveform Only**, so no changing dB number occupies the menu bar while you
+are not using the mic.
 
-### Menu-bar display
+### Call Deck and menu-bar display
 
-Open **Menu Bar Display** in the CodexMic menu to choose:
+Click the menu-bar waveform to open **Call Deck**. It only enables meeting
+controls when the frontmost app is Zoom or the dedicated Google Meet Chrome
+app. That makes the target visible before a shortcut is sent and avoids
+accidentally sending controls into an unrelated app.
+
+If controls are disabled, choose **Enable meeting controls…** in Call Deck to
+open macOS’s Accessibility approval. For Google Meet, use Chrome’s **Install
+page as app** command on `meet.google.com`; the resulting dedicated app is the
+safe target CodexMic recognizes.
+
+If an ad-hoc rebuild causes the live meter to lose microphone access, use
+**Enable microphone meter…** in Call Deck to open the relevant macOS privacy
+setting.
+
+The deck reports that a command was sent, not that the meeting application
+accepted it. Mute is a toggle owned by Zoom or Google Meet, so CodexMic does
+not show a fake muted/unmuted state.
+
+### Call Mode
+
+CodexMic starts in **Standby**. Its menu-bar icon stays still, and it does not
+send a live level to the Micro. Select **Start Call Mode** when a meeting
+begins; the menu-bar waveform and Micro lighting then become live. Pressing the
+physical Microphone control during Zoom or Google Meet also arms Call Mode, so
+the first meeting action is enough to begin metering. End Call Mode when the
+meeting is over to return to a quiet desktop.
+
+Use **Menu Bar Display** in Call Deck to choose:
 
 - **Waveform Only** — the smallest option and the default.
 - **Waveform and Gain** — the waveform plus hardware gain.
@@ -162,7 +194,11 @@ The Swift menu-bar app performs three jobs:
 
 1. It meters the selected PodMic input with `AVAudioEngine`.
 2. It reads and writes the PodMic's Core Audio gain property.
-3. It translates global F13-F20 hotkeys into app-specific meeting shortcuts.
+3. It translates global F13-F20 hotkeys and Call Deck buttons into
+   app-specific meeting shortcuts.
+
+Meeting controls register even when the PodMic is disconnected. Only live
+metering, gain, and Micro lighting require the PodMic.
 
 Input's editor exposes static lighting effects, but its bundled Work Louder
 library can send the firmware's non-persistent `lights.preview` command.
@@ -244,6 +280,8 @@ adapter is updated.
 swift build
 swift run CodexMicChecks
 scripts/package-app.sh
+# Or use the project launcher / Codex Run button:
+script/build_and_run.sh --verify
 ```
 
 The repository contains:
