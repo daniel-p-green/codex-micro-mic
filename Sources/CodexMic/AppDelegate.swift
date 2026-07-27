@@ -54,8 +54,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationWillTerminate(_ notification: Notification) {
     timer?.invalidate()
-    meter?.stop()
-    deviceLighting?.stop()
+    stopMeterIfNeeded()
   }
 
   private func configureAudio() {
@@ -86,24 +85,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
     case .authorized:
       logger.notice("Microphone permission is authorized")
-      startMeter()
+      audioStatusMessage = "Microphone meter is idle until Call Mode starts"
     case .notDetermined:
-      logger.notice("Requesting microphone permission")
-      audioStatusMessage = "Waiting for microphone permission"
-      NSApp.activate(ignoringOtherApps: true)
-      AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
-        DispatchQueue.main.async {
-          if granted {
-            self?.logger.notice("Microphone permission was granted")
-            self?.startMeter()
-          } else {
-            self?.logger.error("Microphone permission was denied")
-            self?.audioStatusMessage =
-              "Microphone permission denied; gain keys still work"
-          }
-          self?.refresh()
-        }
-      }
+      audioStatusMessage = "Microphone permission will be requested in Call Mode"
     case .denied, .restricted:
       logger.error("Microphone permission is denied or restricted")
       audioStatusMessage =
@@ -114,6 +98,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func startMeter() {
+    guard meter == nil else { return }
     guard let controller else { return }
     do {
       let meter = AudioMeter()
@@ -130,6 +115,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       audioStatusMessage = nil
       logger.notice("Live PodMic meter started")
     } catch {
+      lightingStatusMessage = "meter unavailable"
       audioStatusMessage = error.localizedDescription
       logger.error("Meter startup failed: \(error.localizedDescription)")
     }
@@ -195,9 +181,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     callMode = mode
     if mode == .standby {
       stopLightingIfNeeded()
+      stopMeterIfNeeded()
       lightingStatusMessage = "standby"
     } else {
-      lightingStatusMessage = meter == nil ? "meter unavailable" : "arming"
+      startMeterForCallMode()
     }
     logger.notice("Call Mode: \(mode.rawValue, privacy: .public)")
     refresh()
@@ -209,7 +196,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
         DispatchQueue.main.async {
           if granted {
-            self?.startMeter()
+            self?.logger.notice("Microphone permission was granted")
+            self?.audioStatusMessage = "Microphone meter is idle until Call Mode starts"
+            if self?.callMode.isActive == true {
+              self?.startMeter()
+            }
+          } else {
+            self?.logger.error("Microphone permission was denied")
+            self?.audioStatusMessage =
+              "Microphone permission denied; gain keys still work"
           }
           self?.refresh()
         }
@@ -222,10 +217,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSWorkspace.shared.open(settingsURL)
       }
     case .authorized:
-      break
+      if callMode.isActive {
+        startMeter()
+      }
     @unknown default:
       break
     }
+  }
+
+  private func startMeterForCallMode() {
+    switch AVCaptureDevice.authorizationStatus(for: .audio) {
+    case .authorized:
+      lightingStatusMessage = "arming"
+      startMeter()
+    case .notDetermined:
+      lightingStatusMessage = "waiting for microphone permission"
+      requestMicrophonePermission()
+    case .denied, .restricted:
+      lightingStatusMessage = "meter unavailable"
+      audioStatusMessage = "Microphone permission denied; gain keys still work"
+    @unknown default:
+      lightingStatusMessage = "meter unavailable"
+      audioStatusMessage = "Unknown microphone permission state"
+    }
+  }
+
+  private func stopMeterIfNeeded() {
+    meter?.stop()
+    meter = nil
+    deviceLighting?.stop()
+    deviceLighting = nil
+    lightingIsRequested = false
   }
 
   private func handle(_ action: GlobalHotKeys.Action) {
@@ -316,8 +338,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       meterAvailable: meter != nil,
       microphonePermissionNeeded: AVCaptureDevice.authorizationStatus(for: .audio) != .authorized,
       callMode: callMode,
-      displayMode: statusBarDisplayMode
+      displayMode: statusBarDisplayMode,
+      readinessText: readinessText,
+      readinessColor: readinessColor
     ))
+  }
+
+  private var readinessText: String {
+    if !meetingController.hasAccessibilityPermission {
+      return "SETUP  Enable Accessibility for meeting controls"
+    }
+    if callMode.isActive && meter == nil {
+      return "CALL MODE  Microphone meter unavailable"
+    }
+    if lightingStatusMessage == "paused; select Meetings profile" {
+      return "MICRO  Select the Meetings profile in Input"
+    }
+    guard let app = meetingController.activeApplication else {
+      return "READY  Bring Zoom or Google Meet forward"
+    }
+    return "READY  \(app.name) command routing is armed"
+  }
+
+  private var readinessColor: NSColor {
+    if !meetingController.hasAccessibilityPermission
+      || (callMode.isActive && meter == nil)
+      || lightingStatusMessage == "paused; select Meetings profile"
+    {
+      return .systemOrange
+    }
+    return meetingController.activeApplication == nil
+      ? .secondaryLabelColor
+      : .systemGreen
   }
 
   private func updateLighting(levelDB: Float, enabled: Bool) {

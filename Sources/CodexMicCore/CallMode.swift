@@ -18,7 +18,7 @@ public enum CallMode: String, Equatable, Sendable {
   public var detail: String {
     switch self {
     case .standby:
-      "Meter and Micro lighting stay quiet until a call starts."
+      "The microphone meter and Micro lighting stay off until a call starts."
     case .active:
       "Live meter and Micro lighting stay on until you end the session."
     }

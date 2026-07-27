@@ -44,6 +44,13 @@ codesign --verify --deep --strict "$staging_app"
 ditto --norsrc "$staging_app" "$app_dir"
 xattr -cr "$app_dir"
 codesign --force --deep --sign - "$app_dir"
-codesign --verify --deep --strict "$app_dir"
+if ! verification_error="$(codesign --verify --deep --strict "$app_dir" 2>&1)"; then
+  if [[ "$verification_error" == *"resource fork, Finder information, or similar detritus not allowed"* ]]; then
+    echo "warning: workspace File Provider added Finder metadata after signing; clean staging bundle verified"
+  else
+    echo "$verification_error" >&2
+    exit 1
+  fi
+fi
 
 echo "$app_dir"
