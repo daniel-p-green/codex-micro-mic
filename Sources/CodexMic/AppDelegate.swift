@@ -24,8 +24,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var hotKeyStatusMessage: String?
   private var meetingStatusMessage: String?
   private var lightingStatusMessage = "standby"
-  private var callMode: CallMode = .standby
+  // The Codex Micro is the primary meter. Start it by default; the menu bar
+  // stays compact and the user can still pause device lighting explicitly.
+  private var callMode: CallMode = .active
   private var lightingIsRequested = false
+  private var lastMeterHealthLogAt = Date.distantPast
   private var statusBarDisplayMode: StatusBarDisplayMode = {
     guard
       let rawValue = UserDefaults.standard.string(
@@ -85,9 +88,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
     case .authorized:
       logger.notice("Microphone permission is authorized")
-      audioStatusMessage = "Microphone meter is idle until Call Mode starts"
+      audioStatusMessage = "Starting Codex Micro meter"
+      startMeter()
     case .notDetermined:
-      audioStatusMessage = "Microphone permission will be requested in Call Mode"
+      audioStatusMessage = "Enable microphone access to start the Codex Micro meter"
+      requestMicrophonePermission()
     case .denied, .restricted:
       logger.error("Microphone permission is denied or restricted")
       audioStatusMessage =
@@ -102,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     guard let controller else { return }
     do {
       let meter = AudioMeter()
-      try meter.start(deviceID: controller.deviceID)
+      try meter.start(deviceUID: controller.deviceUID)
       self.meter = meter
       let lighting = CodexMicroLighting { [weak self] status in
         self?.lightingStatusMessage = status
@@ -198,10 +203,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
           if granted {
             self?.logger.notice("Microphone permission was granted")
-            self?.audioStatusMessage = "Microphone meter is idle until Call Mode starts"
-            if self?.callMode.isActive == true {
-              self?.startMeter()
-            }
+            self?.audioStatusMessage = "Starting Codex Micro meter"
+            self?.startMeter()
           } else {
             self?.logger.error("Microphone permission was denied")
             self?.audioStatusMessage =
@@ -305,6 +308,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let gainText = gain.map { String(format: "%.0f", $0) } ?? "--"
 
     let callModeIsLive = callMode.isActive && meter != nil
+    updateMeterHealth()
     let showsWaveform = statusBarDisplayMode.showsWaveform && callModeIsLive
     statusItem.button?.image = showsWaveform
       ? waveformImage(for: level)
@@ -321,12 +325,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       : .imageOnly
     statusItem.button?.toolTip =
       callModeIsLive
-      ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
-      : "Call Mode standby. Open Call Deck to start live metering."
+      ? "Codex Micro meter: PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      : "Codex Micro meter paused. Open Call Deck to resume it."
     statusItem.button?.setAccessibilityLabel(
       callModeIsLive
       ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
-      : "Call Mode standby"
+      : "Codex Micro meter paused"
     )
     updateLighting(levelDB: level, enabled: callModeIsLive)
     callDeck.update(with: .init(
@@ -345,15 +349,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ))
   }
 
+  private func updateMeterHealth() {
+    guard let health = meter?.health else { return }
+    let now = Date()
+    guard now.timeIntervalSince(lastMeterHealthLogAt) >= 2 else { return }
+    lastMeterHealthLogAt = now
+
+    let age = health.secondsSinceLastBuffer.map {
+      String(format: "%.1f", $0)
+    } ?? "never"
+    logger.notice(
+      "Meter health: level=\(health.levelDB, privacy: .public) dBFS buffers=\(health.bufferCount, privacy: .public) lastBufferAge=\(age, privacy: .public)s"
+    )
+
+    if health.secondsSinceStart >= 3, !health.isReceivingAudio {
+      audioStatusMessage =
+        "No audio samples from RØDE PodMic USB; check microphone access or reconnect the mic"
+    } else if health.isReceivingAudio,
+      audioStatusMessage?.hasPrefix("No audio samples") == true
+    {
+      audioStatusMessage = nil
+    }
+  }
+
   private var readinessText: String {
     if !meetingController.hasAccessibilityPermission {
       return "SETUP  Enable Accessibility for meeting controls"
     }
     if callMode.isActive && meter == nil {
-      return "CALL MODE  Microphone meter unavailable"
+      return "MICRO METER  Microphone meter unavailable"
     }
     if lightingStatusMessage == "paused; select Meetings profile" {
       return "MICRO  Select the Meetings profile in Input"
+    }
+    if lightingStatusMessage == "waiting; quit Input editor" {
+      return "MICRO  Quit Input to release device lighting"
     }
     guard let app = meetingController.activeApplication else {
       return "READY  Bring Zoom or Google Meet forward"
@@ -365,6 +395,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     if !meetingController.hasAccessibilityPermission
       || (callMode.isActive && meter == nil)
       || lightingStatusMessage == "paused; select Meetings profile"
+      || lightingStatusMessage == "waiting; quit Input editor"
     {
       return .systemOrange
     }
@@ -394,13 +425,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let color: NSColor
     switch band {
     case .silent:
-      color = .systemGray
+      color = .secondaryLabelColor
     case .quiet:
-      color = .systemBlue
+      color = .systemGreen
     case .healthy:
       color = .systemGreen
     case .hot:
-      color = .systemOrange
+      color = .systemYellow
     case .clipping:
       color = .systemRed
     }

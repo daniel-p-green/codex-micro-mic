@@ -50,53 +50,73 @@ do {
   )
 
   try require(
-    MeterBand.classify(levelDB: -60) == .silent,
-    "-60 dBFS should be silent"
+    MeterBand.classify(levelDB: -75) == .silent,
+    "-75 dBFS should be silent"
   )
   try require(
-    MeterBand.classify(levelDB: -30) == .quiet,
-    "-30 dBFS should be quiet"
+    MeterBand.classify(levelDB: -65) == .quiet,
+    "-65 dBFS should be visible as a quiet signal"
   )
   try require(
-    MeterBand.classify(levelDB: -12) == .healthy,
-    "-12 dBFS should be healthy"
+    MeterBand.classify(levelDB: -45) == .quiet,
+    "-45 dBFS should be quiet"
   )
   try require(
-    MeterBand.classify(levelDB: -3) == .hot,
-    "-3 dBFS should be hot"
+    MeterBand.classify(levelDB: -20) == .healthy,
+    "-20 dBFS should be healthy"
+  )
+  try require(
+    MeterBand.classify(levelDB: -6) == .hot,
+    "-6 dBFS should be hot"
   )
   try require(
     MeterBand.classify(levelDB: -0.5) == .clipping,
     "-0.5 dBFS should indicate clipping risk"
   )
 
-  let silentLight = LightingMeter.sample(levelDB: -60)
+  let silentLight = LightingMeter.sample(levelDB: -75)
   try require(
-    silentLight == LightingSample(color: LightingMeter.gray, brightness: 0.1),
-    "Silence should be dim gray"
+    silentLight == LightingSample(color: LightingMeter.green, brightness: 0),
+    "Silence should turn the meter lights off"
   )
-  let quietLight = LightingMeter.sample(levelDB: -35)
+  let quietLight = LightingMeter.sample(levelDB: -45)
   try require(
-    quietLight.color == LightingMeter.blue
-      && quietLight.brightness == 0.35,
-    "Quiet audio should be blue with quantized brightness"
+    quietLight.color == LightingMeter.green
+      && quietLight.brightness == 0.55,
+    "Quiet audio should be visibly green with quantized brightness"
   )
-  let healthyLight = LightingMeter.sample(levelDB: -12)
+  let healthyLight = LightingMeter.sample(levelDB: -20)
   try require(
     healthyLight.color == LightingMeter.green
-      && healthyLight.brightness == 0.7,
+      && healthyLight.brightness == 0.85,
     "Healthy speech should be green"
   )
-  let hotLight = LightingMeter.sample(levelDB: -3)
+  let hotLight = LightingMeter.sample(levelDB: -6)
   try require(
-    hotLight.color == LightingMeter.orange
-      && hotLight.brightness == 0.9,
-    "Hot speech should be orange"
+    hotLight.color == LightingMeter.yellow
+      && hotLight.brightness == 0.95,
+    "Hot speech should be yellow"
   )
   try require(
     LightingMeter.sample(levelDB: -0.5)
       == LightingSample(color: LightingMeter.red, brightness: 1),
     "Clipping risk should be full-brightness red"
+  )
+  try require(
+    MeterMath.envelope(
+      previous: -20,
+      fresh: -60,
+      elapsedSeconds: 0.5
+    ) == -29,
+    "The meter envelope should release by 18 dB per second"
+  )
+  try require(
+    MeterMath.envelope(
+      previous: -40,
+      fresh: -15,
+      elapsedSeconds: 0.01
+    ) == -15,
+    "The meter envelope should attack immediately"
   )
 
   try require(
@@ -134,14 +154,14 @@ do {
   try require(
     !CallMode.standby.isActive
       && CallMode.standby.next == .active
-      && CallMode.standby.title == "Start Call Mode",
-    "Standby should keep meter output off until explicitly armed"
+      && CallMode.standby.title == "Start Micro Meter",
+    "The Micro meter should be resumable after an explicit pause"
   )
   try require(
     CallMode.active.isActive
       && CallMode.active.next == .standby
-      && CallMode.active.title == "End Call Mode",
-    "Active Call Mode should be reversible"
+      && CallMode.active.title == "Pause Micro Meter",
+    "The Micro meter should be pausable"
   )
 
   try require(

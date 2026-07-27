@@ -1,13 +1,35 @@
 import AVFoundation
 import AudioToolbox
 import CodexMicCore
-import CoreAudio
+import CoreMedia
 import Foundation
 
-final class AudioMeter {
-  private let engine = AVAudioEngine()
+final class AudioMeter: NSObject,
+  AVCaptureAudioDataOutputSampleBufferDelegate
+{
+  struct Health {
+    let levelDB: Float
+    let bufferCount: UInt64
+    let secondsSinceStart: TimeInterval
+    let secondsSinceLastBuffer: TimeInterval?
+
+    var isReceivingAudio: Bool {
+      bufferCount > 0
+        && (secondsSinceLastBuffer ?? .infinity) < 2
+    }
+  }
+
+  private let session = AVCaptureSession()
+  private let captureQueue = DispatchQueue(
+    label: "io.github.daniel-p-green.codexmic.audio-capture"
+  )
   private let lock = NSLock()
   private var storedLevelDB = MeterMath.floorDB
+  private var storedBufferCount: UInt64 = 0
+  private var startedAt = Date.distantPast
+  private var lastBufferAt: Date?
+  private var lastLevelUpdateAt: Date?
+  private var output: AVCaptureAudioDataOutput?
 
   var levelDB: Float {
     lock.lock()
@@ -15,68 +37,146 @@ final class AudioMeter {
     return storedLevelDB
   }
 
-  func start(deviceID: AudioDeviceID) throws {
-    let input = engine.inputNode
-    guard let audioUnit = input.audioUnit else {
-      throw AudioDeviceError.propertyUnavailable(
-        "The audio input unit is unavailable"
-      )
-    }
-
-    var selectedDevice = deviceID
-    let selectionStatus = AudioUnitSetProperty(
-      audioUnit,
-      kAudioOutputUnitProperty_CurrentDevice,
-      kAudioUnitScope_Global,
-      0,
-      &selectedDevice,
-      UInt32(MemoryLayout<AudioDeviceID>.size)
+  var health: Health {
+    lock.lock()
+    defer { lock.unlock() }
+    let now = Date()
+    return Health(
+      levelDB: storedLevelDB,
+      bufferCount: storedBufferCount,
+      secondsSinceStart: now.timeIntervalSince(startedAt),
+      secondsSinceLastBuffer: lastBufferAt.map {
+        now.timeIntervalSince($0)
+      }
     )
-    guard selectionStatus == noErr else {
-      throw AudioDeviceError.coreAudio(
-        "Select RØDE PodMic USB for metering",
-        selectionStatus
+  }
+
+  func start(deviceUID: String) throws {
+    let deviceTypes: [AVCaptureDevice.DeviceType]
+    if #available(macOS 14.0, *) {
+      deviceTypes = [.microphone, .external]
+    } else {
+      deviceTypes = [.builtInMicrophone, .externalUnknown]
+    }
+    guard
+      let device = AVCaptureDevice.DiscoverySession(
+        deviceTypes: deviceTypes,
+        mediaType: .audio,
+        position: .unspecified
+      ).devices
+        .first(where: { $0.uniqueID == deviceUID })
+    else {
+      throw AudioDeviceError.deviceNotFound(
+        "the selected macOS input device"
       )
     }
 
-    let format = input.outputFormat(forBus: 0)
-    input.installTap(
-      onBus: 0,
-      bufferSize: 1_024,
-      format: format
-    ) { [weak self] buffer, _ in
-      self?.consume(buffer)
+    let input = try AVCaptureDeviceInput(device: device)
+    let output = AVCaptureAudioDataOutput()
+    output.audioSettings = [
+      AVFormatIDKey: kAudioFormatLinearPCM,
+      AVLinearPCMBitDepthKey: 32,
+      AVLinearPCMIsFloatKey: true,
+      AVLinearPCMIsBigEndianKey: false,
+      AVLinearPCMIsNonInterleaved: false,
+    ]
+    output.setSampleBufferDelegate(self, queue: captureQueue)
+
+    session.beginConfiguration()
+    defer { session.commitConfiguration() }
+    guard session.canAddInput(input) else {
+      throw AudioDeviceError.propertyUnavailable(
+        "The selected microphone cannot be added to the capture session"
+      )
     }
-    engine.prepare()
-    try engine.start()
+    session.addInput(input)
+    guard session.canAddOutput(output) else {
+      session.removeInput(input)
+      throw AudioDeviceError.propertyUnavailable(
+        "The microphone level output cannot be added to the capture session"
+      )
+    }
+    session.addOutput(output)
+    self.output = output
+
+    lock.lock()
+    storedLevelDB = MeterMath.floorDB
+    storedBufferCount = 0
+    startedAt = Date()
+    lastBufferAt = nil
+    lastLevelUpdateAt = nil
+    lock.unlock()
+
+    captureQueue.async { [session] in
+      session.startRunning()
+    }
   }
 
   func stop() {
-    engine.inputNode.removeTap(onBus: 0)
-    engine.stop()
+    output?.setSampleBufferDelegate(nil, queue: nil)
+    output = nil
+    if session.isRunning {
+      session.stopRunning()
+    }
   }
 
-  private func consume(_ buffer: AVAudioPCMBuffer) {
-    guard let data = buffer.floatChannelData else { return }
-    let frameCount = Int(buffer.frameLength)
-    guard frameCount > 0 else { return }
+  func captureOutput(
+    _ output: AVCaptureOutput,
+    didOutput sampleBuffer: CMSampleBuffer,
+    from connection: AVCaptureConnection
+  ) {
+    var blockBuffer: CMBlockBuffer?
+    var bufferList = AudioBufferList(
+      mNumberBuffers: 1,
+      mBuffers: AudioBuffer(
+        mNumberChannels: 0,
+        mDataByteSize: 0,
+        mData: nil
+      )
+    )
+    let status = CMSampleBufferGetAudioBufferListWithRetainedBlockBuffer(
+      sampleBuffer,
+      bufferListSizeNeededOut: nil,
+      bufferListOut: &bufferList,
+      bufferListSize: MemoryLayout<AudioBufferList>.size,
+      blockBufferAllocator: kCFAllocatorDefault,
+      blockBufferMemoryAllocator: kCFAllocatorDefault,
+      flags: kCMSampleBufferFlag_AudioBufferList_Assure16ByteAlignment,
+      blockBufferOut: &blockBuffer
+    )
+    guard status == noErr,
+      let rawData = bufferList.mBuffers.mData
+    else { return }
 
-    var sum: Float = 0
-    for channel in 0..<Int(buffer.format.channelCount) {
-      let samples = data[channel]
-      for frame in 0..<frameCount {
-        let value = samples[frame]
-        sum += value * value
-      }
+    let sampleCount =
+      Int(bufferList.mBuffers.mDataByteSize)
+      / MemoryLayout<Float>.size
+    guard sampleCount > 0 else { return }
+
+    let samples = rawData.assumingMemoryBound(to: Float.self)
+    var sum = Float.zero
+    for index in 0..<sampleCount {
+      let value = samples[index]
+      sum += value * value
     }
-    let count = frameCount * Int(buffer.format.channelCount)
     let fresh = MeterMath.decibels(
       sumOfSquares: sum,
-      sampleCount: count
+      sampleCount: sampleCount
     )
 
+    let now = Date()
     lock.lock()
-    storedLevelDB = max(fresh, storedLevelDB - 4)
+    let elapsed = lastLevelUpdateAt.map {
+      now.timeIntervalSince($0)
+    } ?? 0
+    storedLevelDB = MeterMath.envelope(
+      previous: storedLevelDB,
+      fresh: fresh,
+      elapsedSeconds: elapsed
+    )
+    storedBufferCount += 1
+    lastBufferAt = now
+    lastLevelUpdateAt = now
     lock.unlock()
   }
 }

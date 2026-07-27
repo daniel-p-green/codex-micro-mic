@@ -55,7 +55,7 @@ final class CallDeckPopover: NSViewController {
   )
   private let displayModeButton = NSPopUpButton(frame: .zero, pullsDown: false)
   private let callModeSegment = NSSegmentedControl(
-    labels: ["Standby", "Live"],
+    labels: ["Off", "On"],
     trackingMode: .selectOne,
     target: nil,
     action: nil
@@ -146,7 +146,7 @@ final class CallDeckPopover: NSViewController {
     modeRow.orientation = .horizontal
     modeRow.alignment = .centerY
     modeRow.spacing = 8
-    modeRow.addArrangedSubview(sectionLabel("CALL MODE"))
+    modeRow.addArrangedSubview(sectionLabel("MICRO METER"))
     modeRow.addArrangedSubview(NSView())
     callModeSegment.target = self
     callModeSegment.action = #selector(selectCallMode(_:))
@@ -422,7 +422,7 @@ private final class CallLevelMeterView: NSView {
     let barCount = 16
     let gap: CGFloat = 3
     let barWidth = (inset.width - CGFloat(barCount - 1) * gap) / CGFloat(barCount)
-    let normalized = max(0, min(1, CGFloat((levelDB + 50) / 50)))
+    let normalized = max(0, min(1, CGFloat((levelDB + 60) / 60)))
     let activeBars = isDimmed ? 0 : Int((normalized * CGFloat(barCount)).rounded(.up))
     let color = meterColor(for: levelDB)
 
@@ -443,10 +443,10 @@ private final class CallLevelMeterView: NSView {
 
   private func meterColor(for levelDB: Float) -> NSColor {
     switch MeterBand.classify(levelDB: levelDB) {
-    case .silent: .systemGray
-    case .quiet: .systemBlue
+    case .silent: .secondaryLabelColor
+    case .quiet: .systemGreen
     case .healthy: .systemGreen
-    case .hot: .systemOrange
+    case .hot: .systemYellow
     case .clipping: .systemRed
     }
   }

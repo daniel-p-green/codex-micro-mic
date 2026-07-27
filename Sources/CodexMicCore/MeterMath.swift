@@ -20,6 +20,19 @@ public enum MeterMath {
   ) -> Float {
     min(max(value, range.lowerBound), range.upperBound)
   }
+
+  public static func envelope(
+    previous: Float,
+    fresh: Float,
+    elapsedSeconds: TimeInterval,
+    releaseDBPerSecond: Float = 18
+  ) -> Float {
+    let elapsed = max(0, Float(elapsedSeconds))
+    return max(
+      fresh,
+      previous - releaseDBPerSecond * elapsed
+    )
+  }
 }
 
 public enum MeterBand: String {
@@ -31,13 +44,13 @@ public enum MeterBand: String {
 
   public static func classify(levelDB: Float) -> MeterBand {
     switch levelDB {
-    case ..<(-50):
+    case ..<(-70):
       return .silent
-    case ..<(-20):
+    case ..<(-30):
       return .quiet
-    case ..<(-6):
+    case ..<(-12):
       return .healthy
-    case ..<(-1):
+    case ..<(-3):
       return .hot
     default:
       return .clipping

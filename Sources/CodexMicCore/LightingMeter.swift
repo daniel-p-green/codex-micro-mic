@@ -11,11 +11,9 @@ public struct LightingSample: Equatable, Codable {
 }
 
 public enum LightingMeter {
-  public static let gray = 0x6B7280
-  public static let blue = 0x2D8CFF
-  public static let green = 0x34A853
-  public static let orange = 0xFF7A00
-  public static let red = 0xEA4335
+  public static let green = 0x34C759
+  public static let yellow = 0xFFD60A
+  public static let red = 0xFF3B30
 
   public static func sample(levelDB: Float) -> LightingSample {
     let band = MeterBand.classify(levelDB: levelDB)
@@ -24,28 +22,28 @@ public enum LightingMeter {
 
     switch band {
     case .silent:
-      color = gray
-      brightness = 0.08
+      color = green
+      brightness = 0
     case .quiet:
-      color = blue
+      color = green
       brightness = scaled(
         levelDB,
-        input: -50 ... -20,
-        output: 0.15 ... 0.50
+        input: -70 ... -30,
+        output: 0.35 ... 0.70
       )
     case .healthy:
       color = green
       brightness = scaled(
         levelDB,
-        input: -20 ... -6,
-        output: 0.55 ... 0.80
+        input: -30 ... -12,
+        output: 0.75 ... 0.90
       )
     case .hot:
-      color = orange
+      color = yellow
       brightness = scaled(
         levelDB,
-        input: -6 ... -1,
-        output: 0.85 ... 0.95
+        input: -12 ... -3,
+        output: 0.90 ... 1
       )
     case .clipping:
       color = red

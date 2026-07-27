@@ -29,13 +29,16 @@ The device uses a color-plus-motion meter:
 
 | Color | Input level | Meaning |
 |---|---:|---|
-| Dim gray | Below -50 dBFS | Silence |
-| Blue | -50 to -20 dBFS | Quiet |
-| Green | -20 to -6 dBFS | Healthy speech |
-| Orange | -6 to -1 dBFS | Hot |
-| Red | -1 dBFS or higher | Clipping risk |
+| Off | Below -70 dBFS | Silence |
+| Green | -70 to -12 dBFS | Safe input level |
+| Yellow | -12 to -3 dBFS | Hot |
+| Red | -3 dBFS or higher | Clipping risk |
 
-Brightness changes within each band, so the device still moves like a meter.
+Brightness changes within each band, and a time-based release keeps speech
+peaks visible long enough for the physical device to show them.
+The Codex Micro itself is the primary meter: CodexMic drives both its key
+backlight and underglow from the live PodMic level. The menu-bar waveform is
+only a compact diagnostic.
 The menu-bar waveform changes color only when the input crosses a level band,
 so its width stays fixed and it does not flicker with every sample. The default
 is **Waveform Only**, so no changing dB number occupies the menu bar while you
@@ -64,16 +67,14 @@ reports that a command was sent, not that the meeting application accepted it;
 the resulting mute and camera states remain app-owned and explicitly
 unverified.
 
-### Call Mode
+### Micro Meter
 
-CodexMic starts in **Standby**. Its menu-bar icon stays still, the microphone
-meter is stopped, and no live level is sent to the Micro. Select **Start Call
-Mode** when a meeting begins; CodexMic then requests microphone permission if
-needed, starts the meter, and makes the menu-bar waveform and Micro lighting
-live. Pressing the physical Microphone control during Zoom or Google Meet also
-arms Call Mode, so the first meeting action is enough to begin metering. End
-Call Mode when the meeting is over to stop metering and return to a quiet
-desktop.
+CodexMic starts with the **Micro Meter on** and requests microphone access on
+its first launch. Once approved, the Codex Micro itself follows the live
+PodMic level without needing Call Deck open or a meeting app in front. The
+menu bar remains compact: its default is a small waveform rather than a
+changing dB number. Use the **Off** switch only when you want to pause device
+lighting.
 
 Call Deck includes a compact readiness line. It calls out missing Accessibility
 approval, a missing microphone meter, a wrong Micro profile, or the need to
@@ -205,7 +206,8 @@ flowchart LR
 
 The Swift menu-bar app performs three jobs:
 
-1. It meters the selected PodMic input with `AVAudioEngine`.
+1. It meters the selected PodMic input with an audio-only
+   `AVCaptureSession` and confirms that sample buffers are arriving.
 2. It reads and writes the PodMic's Core Audio gain property.
 3. It translates global F13-F20 hotkeys and Call Deck buttons into
    app-specific meeting shortcuts.
@@ -260,6 +262,9 @@ In a non-production call, Call Deck should show:
 - `MICRO LIGHTING live` after Call Mode starts and the Meetings profile is
   active.
 - A changing level meter and current PodMic gain.
+- A clear `No audio samples` diagnostic if Core Audio starts without delivering
+  microphone buffers; a helper status of `live` alone is not treated as proof
+  that the physical meter is moving.
 - `Toggle mic sent to <app> · app state unverified` after a microphone command.
 
 Test the six meeting buttons in a non-production call before relying on them.
@@ -267,10 +272,18 @@ Meeting applications can change shortcuts between releases.
 
 ## Troubleshooting
 
-### Lighting says `waiting for Input to quit`
+### Input is open
 
-Finish editing or uploading the profile, make Meetings current, and quit
-Input. CodexMic starts the lighting service automatically afterward.
+Use Input to edit or upload the Meetings profile, then quit the Input editor
+while CodexMic meters. Both processes can address the same device, but Input's
+static lighting can overwrite the temporary live-level previews. Call Deck
+shows `Quit Input to release device lighting` and starts the meter
+automatically after the editor closes.
+
+### Lighting stays on `connecting`
+
+Quit CodexMic and reopen `/Applications/CodexMic.app`. The lighting helper is
+recreated with the app and should report `live` after it attaches to the Micro.
 
 ### Lighting says `paused; select Meetings profile`
 
