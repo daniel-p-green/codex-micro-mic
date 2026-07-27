@@ -24,7 +24,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var hotKeyStatusMessage: String?
   private var meetingStatusMessage: String?
   private var lightingStatusMessage = "standby"
-  private var callMode: CallMode = .standby
+  // The Codex Micro is the primary meter. Start it by default; the menu bar
+  // stays compact and the user can still pause device lighting explicitly.
+  private var callMode: CallMode = .active
   private var lightingIsRequested = false
   private var statusBarDisplayMode: StatusBarDisplayMode = {
     guard
@@ -85,9 +87,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch AVCaptureDevice.authorizationStatus(for: .audio) {
     case .authorized:
       logger.notice("Microphone permission is authorized")
-      audioStatusMessage = "Microphone meter is idle until Call Mode starts"
+      audioStatusMessage = "Starting Codex Micro meter"
+      startMeter()
     case .notDetermined:
-      audioStatusMessage = "Microphone permission will be requested in Call Mode"
+      audioStatusMessage = "Enable microphone access to start the Codex Micro meter"
+      requestMicrophonePermission()
     case .denied, .restricted:
       logger.error("Microphone permission is denied or restricted")
       audioStatusMessage =
@@ -198,10 +202,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         DispatchQueue.main.async {
           if granted {
             self?.logger.notice("Microphone permission was granted")
-            self?.audioStatusMessage = "Microphone meter is idle until Call Mode starts"
-            if self?.callMode.isActive == true {
-              self?.startMeter()
-            }
+            self?.audioStatusMessage = "Starting Codex Micro meter"
+            self?.startMeter()
           } else {
             self?.logger.error("Microphone permission was denied")
             self?.audioStatusMessage =
@@ -321,12 +323,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       : .imageOnly
     statusItem.button?.toolTip =
       callModeIsLive
-      ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
-      : "Call Mode standby. Open Call Deck to start live metering."
+      ? "Codex Micro meter: PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      : "Codex Micro meter paused. Open Call Deck to resume it."
     statusItem.button?.setAccessibilityLabel(
       callModeIsLive
       ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
-      : "Call Mode standby"
+      : "Codex Micro meter paused"
     )
     updateLighting(levelDB: level, enabled: callModeIsLive)
     callDeck.update(with: .init(
@@ -350,7 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       return "SETUP  Enable Accessibility for meeting controls"
     }
     if callMode.isActive && meter == nil {
-      return "CALL MODE  Microphone meter unavailable"
+      return "MICRO METER  Microphone meter unavailable"
     }
     if lightingStatusMessage == "paused; select Meetings profile" {
       return "MICRO  Select the Meetings profile in Input"

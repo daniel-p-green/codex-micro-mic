@@ -9,18 +9,18 @@ public enum CallMode: String, Equatable, Sendable {
   public var title: String {
     switch self {
     case .standby:
-      "Start Call Mode"
+      "Start Micro Meter"
     case .active:
-      "End Call Mode"
+      "Pause Micro Meter"
     }
   }
 
   public var detail: String {
     switch self {
     case .standby:
-      "The microphone meter and Micro lighting stay off until a call starts."
+      "The Micro lighting meter is paused."
     case .active:
-      "Live meter and Micro lighting stay on until you end the session."
+      "The Micro lighting meter follows your live PodMic level."
     }
   }
 

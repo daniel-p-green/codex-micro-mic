@@ -26,16 +26,6 @@ final class CodexMicroLighting {
   func start() {
     guard connection == nil else { return }
 
-    let inputIsOpen = NSRunningApplication
-      .runningApplications(
-        withBundleIdentifier: "it.focusense.input-app"
-      )
-      .contains { $0.activationPolicy == .regular }
-    guard !inputIsOpen else {
-      report("waiting for Input to quit")
-      return
-    }
-
     let inputExecutable = URL(
       fileURLWithPath: "/Applications/input.app/Contents/MacOS/input"
     )

@@ -64,16 +64,14 @@ reports that a command was sent, not that the meeting application accepted it;
 the resulting mute and camera states remain app-owned and explicitly
 unverified.
 
-### Call Mode
+### Micro Meter
 
-CodexMic starts in **Standby**. Its menu-bar icon stays still, the microphone
-meter is stopped, and no live level is sent to the Micro. Select **Start Call
-Mode** when a meeting begins; CodexMic then requests microphone permission if
-needed, starts the meter, and makes the menu-bar waveform and Micro lighting
-live. Pressing the physical Microphone control during Zoom or Google Meet also
-arms Call Mode, so the first meeting action is enough to begin metering. End
-Call Mode when the meeting is over to stop metering and return to a quiet
-desktop.
+CodexMic starts with the **Micro Meter on** and requests microphone access on
+its first launch. Once approved, the Codex Micro itself follows the live
+PodMic level without needing Call Deck open or a meeting app in front. The
+menu bar remains compact: its default is a small waveform rather than a
+changing dB number. Use the **Off** switch only when you want to pause device
+lighting.
 
 Call Deck includes a compact readiness line. It calls out missing Accessibility
 approval, a missing microphone meter, a wrong Micro profile, or the need to
@@ -267,10 +265,11 @@ Meeting applications can change shortcuts between releases.
 
 ## Troubleshooting
 
-### Lighting says `waiting for Input to quit`
+### Input is open
 
-Finish editing or uploading the profile, make Meetings current, and quit
-Input. CodexMic starts the lighting service automatically afterward.
+Input can stay open. CodexMic uses Input's device runtime in a separate helper
+process, so it no longer requires you to quit the Input editor before the
+Codex Micro can display its live level.
 
 ### Lighting says `paused; select Meetings profile`
 

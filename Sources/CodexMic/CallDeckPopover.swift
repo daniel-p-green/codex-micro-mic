@@ -55,7 +55,7 @@ final class CallDeckPopover: NSViewController {
   )
   private let displayModeButton = NSPopUpButton(frame: .zero, pullsDown: false)
   private let callModeSegment = NSSegmentedControl(
-    labels: ["Standby", "Live"],
+    labels: ["Off", "On"],
     trackingMode: .selectOne,
     target: nil,
     action: nil
@@ -146,7 +146,7 @@ final class CallDeckPopover: NSViewController {
     modeRow.orientation = .horizontal
     modeRow.alignment = .centerY
     modeRow.spacing = 8
-    modeRow.addArrangedSubview(sectionLabel("CALL MODE"))
+    modeRow.addArrangedSubview(sectionLabel("MICRO METER"))
     modeRow.addArrangedSubview(NSView())
     callModeSegment.target = self
     callModeSegment.action = #selector(selectCallMode(_:))

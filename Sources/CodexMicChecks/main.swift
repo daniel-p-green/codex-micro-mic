@@ -134,14 +134,14 @@ do {
   try require(
     !CallMode.standby.isActive
       && CallMode.standby.next == .active
-      && CallMode.standby.title == "Start Call Mode",
-    "Standby should keep meter output off until explicitly armed"
+      && CallMode.standby.title == "Start Micro Meter",
+    "The Micro meter should be resumable after an explicit pause"
   )
   try require(
     CallMode.active.isActive
       && CallMode.active.next == .standby
-      && CallMode.active.title == "End Call Mode",
-    "Active Call Mode should be reversible"
+      && CallMode.active.title == "Pause Micro Meter",
+    "The Micro meter should be pausable"
   )
 
   try require(
