@@ -11,6 +11,7 @@ final class CallDeckPopover: NSViewController {
     let lastAction: String?
     let meterAvailable: Bool
     let microphonePermissionNeeded: Bool
+    let callMode: CallMode
     let displayMode: StatusBarDisplayMode
   }
 
@@ -19,6 +20,7 @@ final class CallDeckPopover: NSViewController {
   var onDisplayModeChange: ((StatusBarDisplayMode) -> Void)?
   var onRequestAccessibility: (() -> Void)?
   var onRequestMicrophonePermission: (() -> Void)?
+  var onCallModeChange: ((CallMode) -> Void)?
   var onQuit: (() -> Void)?
 
   private let titleLabel = CallDeckPopover.label(
@@ -48,6 +50,15 @@ final class CallDeckPopover: NSViewController {
     color: .tertiaryLabelColor
   )
   private let displayModeButton = NSPopUpButton(frame: .zero, pullsDown: false)
+  private let callModeButton = NSButton(
+    title: CallMode.standby.title,
+    target: nil,
+    action: nil
+  )
+  private let callModeDetailLabel = CallDeckPopover.label(
+    font: .systemFont(ofSize: 11, weight: .medium),
+    color: .secondaryLabelColor
+  )
   private let accessibilityButton = NSButton(
     title: "Enable meeting controls…",
     target: nil,
@@ -101,6 +112,15 @@ final class CallDeckPopover: NSViewController {
     header.addArrangedSubview(stateDot)
     header.addArrangedSubview(titles)
     content.addArrangedSubview(header)
+
+    callModeButton.target = self
+    callModeButton.action = #selector(toggleCallMode)
+    callModeButton.bezelStyle = .rounded
+    callModeButton.controlSize = .large
+    callModeButton.font = .systemFont(ofSize: 13, weight: .semibold)
+    content.addArrangedSubview(callModeButton)
+    callModeButton.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
+    content.addArrangedSubview(callModeDetailLabel)
 
     meter.translatesAutoresizingMaskIntoConstraints = false
     meter.heightAnchor.constraint(equalToConstant: 42).isActive = true
@@ -211,6 +231,11 @@ final class CallDeckPopover: NSViewController {
     }
     accessibilityButton.isHidden = snapshot.hasAccessibilityPermission
     microphoneButton.isHidden = !snapshot.microphonePermissionNeeded
+    callModeButton.title = snapshot.callMode.title
+    callModeButton.contentTintColor = snapshot.callMode.isActive
+      ? .systemRed
+      : .systemGreen
+    callModeDetailLabel.stringValue = snapshot.callMode.detail
     for button in gainButtons {
       button.isEnabled = snapshot.meterAvailable
     }
@@ -264,6 +289,12 @@ final class CallDeckPopover: NSViewController {
 
   @objc private func requestMicrophonePermission() {
     onRequestMicrophonePermission?()
+  }
+
+  @objc private func toggleCallMode() {
+    onCallModeChange?(callModeButton.title == CallMode.active.title
+      ? .standby
+      : .active)
   }
 
   private func controlButton(

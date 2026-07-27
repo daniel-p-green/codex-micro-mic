@@ -23,7 +23,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private var audioStatusMessage: String?
   private var hotKeyStatusMessage: String?
   private var meetingStatusMessage: String?
-  private var lightingStatusMessage = "off"
+  private var lightingStatusMessage = "standby"
+  private var callMode: CallMode = .standby
+  private var lightingIsRequested = false
   private var statusBarDisplayMode: StatusBarDisplayMode = {
     guard
       let rawValue = UserDefaults.standard.string(
@@ -125,7 +127,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         self?.refresh()
       }
       deviceLighting = lighting
-      lighting.start()
       audioStatusMessage = nil
       logger.notice("Live PodMic meter started")
     } catch {
@@ -159,6 +160,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     callDeck.onRequestMicrophonePermission = { [weak self] in
       self?.requestMicrophonePermission()
     }
+    callDeck.onCallModeChange = { [weak self] mode in
+      self?.setCallMode(mode)
+    }
     callDeck.onQuit = {
       NSApplication.shared.terminate(nil)
     }
@@ -183,6 +187,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       mode.rawValue,
       forKey: "statusBarDisplayMode"
     )
+    refresh()
+  }
+
+  private func setCallMode(_ mode: CallMode) {
+    guard callMode != mode else { return }
+    callMode = mode
+    if mode == .standby {
+      stopLightingIfNeeded()
+      lightingStatusMessage = "standby"
+    } else {
+      lightingStatusMessage = meter == nil ? "meter unavailable" : "arming"
+    }
+    logger.notice("Call Mode: \(mode.rawValue, privacy: .public)")
     refresh()
   }
 
@@ -235,6 +252,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private func performMeetingControl(_ control: MeetingControl) {
     do {
       meetingStatusMessage = try meetingController.perform(control)
+      if control == .microphone, callMode == .standby {
+        setCallMode(.active)
+      }
       logger.notice("\(self.meetingStatusMessage ?? "Meeting control sent")")
     } catch {
       meetingStatusMessage = error.localizedDescription
@@ -261,25 +281,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let levelText = String(format: "%.0f", level)
     let gainText = gain.map { String(format: "%.0f", $0) } ?? "--"
 
-    let showsWaveform = statusBarDisplayMode.showsWaveform
+    let callModeIsLive = callMode.isActive && meter != nil
+    let showsWaveform = statusBarDisplayMode.showsWaveform && callModeIsLive
     statusItem.button?.image = showsWaveform
       ? waveformImage(for: level)
-      : nil
-    statusItem.button?.title = statusBarDisplayMode.menuBarTitle(
-      levelText: levelText,
-      gainText: gainText
-    )
+      : idleImage()
+    statusItem.button?.title = callModeIsLive
+      ? statusBarDisplayMode.menuBarTitle(
+        levelText: levelText,
+        gainText: gainText
+      )
+      : ""
     statusItem.button?.imagePosition =
       showsWaveform
       ? (statusItem.button?.title.isEmpty == true ? .imageOnly : .imageLeading)
-      : .noImage
+      : .imageOnly
     statusItem.button?.toolTip =
-      "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      callModeIsLive
+      ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      : "Call Mode standby. Open Call Deck to start live metering."
     statusItem.button?.setAccessibilityLabel(
-      "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      callModeIsLive
+      ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      : "Call Mode standby"
     )
-    deviceLighting?.start()
-    deviceLighting?.update(levelDB: level)
+    updateLighting(levelDB: level, enabled: callModeIsLive)
     callDeck.update(with: .init(
       meetingApp: meetingController.activeApplication,
       hasAccessibilityPermission: meetingController.hasAccessibilityPermission,
@@ -289,8 +315,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       lastAction: meetingStatusMessage ?? hotKeyStatusMessage ?? audioStatusMessage,
       meterAvailable: meter != nil,
       microphonePermissionNeeded: AVCaptureDevice.authorizationStatus(for: .audio) != .authorized,
+      callMode: callMode,
       displayMode: statusBarDisplayMode
     ))
+  }
+
+  private func updateLighting(levelDB: Float, enabled: Bool) {
+    guard enabled else {
+      stopLightingIfNeeded()
+      return
+    }
+    lightingIsRequested = true
+    deviceLighting?.start()
+    deviceLighting?.update(levelDB: levelDB)
+  }
+
+  private func stopLightingIfNeeded() {
+    guard lightingIsRequested else { return }
+    deviceLighting?.stop()
+    lightingIsRequested = false
   }
 
   private func waveformImage(for level: Float) -> NSImage? {
@@ -323,6 +366,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     )
     let colorConfiguration = NSImage.SymbolConfiguration(
       paletteColors: [color]
+    )
+    let configuration = sizeConfiguration.applying(colorConfiguration)
+    let image = symbol.withSymbolConfiguration(configuration) ?? symbol
+    image.isTemplate = false
+    return image
+  }
+
+  private func idleImage() -> NSImage? {
+    guard
+      let symbol = NSImage(
+        systemSymbolName: "mic",
+        accessibilityDescription: "Call Mode standby"
+      )
+    else {
+      return nil
+    }
+    let sizeConfiguration = NSImage.SymbolConfiguration(
+      pointSize: 14,
+      weight: .medium
+    )
+    let colorConfiguration = NSImage.SymbolConfiguration(
+      paletteColors: [.secondaryLabelColor]
     )
     let configuration = sizeConfiguration.applying(colorConfiguration)
     let image = symbol.withSymbolConfiguration(configuration) ?? symbol

@@ -132,6 +132,19 @@ do {
   )
 
   try require(
+    !CallMode.standby.isActive
+      && CallMode.standby.next == .active
+      && CallMode.standby.title == "Start Call Mode",
+    "Standby should keep meter output off until explicitly armed"
+  )
+  try require(
+    CallMode.active.isActive
+      && CallMode.active.next == .standby
+      && CallMode.active.title == "End Call Mode",
+    "Active Call Mode should be reversible"
+  )
+
+  try require(
     MeetingApplication(
       bundleIdentifier:
         "com.google.Chrome.app.kjgfgldnnfoeklkmfkjfagphfepbbdan"

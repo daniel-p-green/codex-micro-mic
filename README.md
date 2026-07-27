@@ -61,6 +61,15 @@ The deck reports that a command was sent, not that the meeting application
 accepted it. Mute is a toggle owned by Zoom or Google Meet, so CodexMic does
 not show a fake muted/unmuted state.
 
+### Call Mode
+
+CodexMic starts in **Standby**. Its menu-bar icon stays still, and it does not
+send a live level to the Micro. Select **Start Call Mode** when a meeting
+begins; the menu-bar waveform and Micro lighting then become live. Pressing the
+physical Microphone control during Zoom or Google Meet also arms Call Mode, so
+the first meeting action is enough to begin metering. End Call Mode when the
+meeting is over to return to a quiet desktop.
+
 Use **Menu Bar Display** in Call Deck to choose:
 
 - **Waveform Only** — the smallest option and the default.
