@@ -29,14 +29,17 @@ The device uses a color-plus-motion meter:
 
 | Color | Input level | Meaning |
 |---|---:|---|
-| Dim gray | Below -60 dBFS | Silence |
-| Blue | -60 to -30 dBFS | Quiet |
+| Dim gray | Below -70 dBFS | Silence |
+| Blue | -70 to -30 dBFS | Quiet |
 | Green | -30 to -12 dBFS | Healthy speech |
 | Orange | -12 to -3 dBFS | Hot |
 | Red | -3 dBFS or higher | Clipping risk |
 
 Brightness changes within each band, and a time-based release keeps speech
 peaks visible long enough for the physical device to show them.
+The Codex Micro itself is the primary meter: CodexMic drives both its key
+backlight and underglow from the live PodMic level. The menu-bar waveform is
+only a compact diagnostic.
 The menu-bar waveform changes color only when the input crosses a level band,
 so its width stays fixed and it does not flicker with every sample. The default
 is **Waveform Only**, so no changing dB number occupies the menu bar while you

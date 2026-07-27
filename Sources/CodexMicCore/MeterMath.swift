@@ -44,7 +44,7 @@ public enum MeterBand: String {
 
   public static func classify(levelDB: Float) -> MeterBand {
     switch levelDB {
-    case ..<(-60):
+    case ..<(-70):
       return .silent
     case ..<(-30):
       return .quiet

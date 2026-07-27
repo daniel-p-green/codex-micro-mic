@@ -25,27 +25,27 @@ public enum LightingMeter {
     switch band {
     case .silent:
       color = gray
-      brightness = 0.08
+      brightness = 0.15
     case .quiet:
       color = blue
       brightness = scaled(
         levelDB,
-        input: -60 ... -30,
-        output: 0.20 ... 0.55
+        input: -70 ... -30,
+        output: 0.35 ... 0.70
       )
     case .healthy:
       color = green
       brightness = scaled(
         levelDB,
         input: -30 ... -12,
-        output: 0.60 ... 0.82
+        output: 0.75 ... 0.90
       )
     case .hot:
       color = orange
       brightness = scaled(
         levelDB,
         input: -12 ... -3,
-        output: 0.85 ... 0.95
+        output: 0.90 ... 1
       )
     case .clipping:
       color = red
