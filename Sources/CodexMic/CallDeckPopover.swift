@@ -2,7 +2,7 @@ import AppKit
 import CodexMicCore
 
 final class CallDeckPopover: NSViewController {
-  static let contentSize = NSSize(width: 368, height: 620)
+  static let contentSize = NSSize(width: 388, height: 540)
 
   struct Snapshot {
     let meetingApp: MeetingApplication?
@@ -28,12 +28,12 @@ final class CallDeckPopover: NSViewController {
   var onQuit: (() -> Void)?
 
   private let titleLabel = CallDeckPopover.label(
-    font: .systemFont(ofSize: 19, weight: .semibold),
-    color: .labelColor
+    font: .systemFont(ofSize: 15, weight: .semibold),
+    color: .white
   )
   private let subtitleLabel = CallDeckPopover.label(
-    font: .systemFont(ofSize: 12, weight: .medium),
-    color: .secondaryLabelColor
+    font: .systemFont(ofSize: 11, weight: .medium),
+    color: .white.withAlphaComponent(0.62)
   )
   private let stateDot = NSView()
   private let meter = CallLevelMeterView()
@@ -54,14 +54,14 @@ final class CallDeckPopover: NSViewController {
     color: .tertiaryLabelColor
   )
   private let displayModeButton = NSPopUpButton(frame: .zero, pullsDown: false)
-  private let callModeButton = NSButton(
-    title: CallMode.standby.title,
+  private let callModeSegment = NSSegmentedControl(
+    labels: ["Standby", "Live"],
+    trackingMode: .selectOne,
     target: nil,
     action: nil
   )
-  private let callModeDetailLabel = CallDeckPopover.label(
-    font: .systemFont(ofSize: 11, weight: .medium),
-    color: .secondaryLabelColor
+  private let deviceBadge = CallDeckPopover.badgeLabel(
+    title: "Codex Micro"
   )
   private let readinessLabel = CallDeckPopover.label(
     font: .systemFont(ofSize: 11, weight: .semibold),
@@ -90,50 +90,76 @@ final class CallDeckPopover: NSViewController {
     view = background
     preferredContentSize = Self.contentSize
 
-    let content = NSStackView()
-    content.orientation = .vertical
-    content.alignment = .leading
-    content.spacing = 10
-    content.translatesAutoresizingMaskIntoConstraints = false
-    view.addSubview(content)
+    let toolbar = NSView()
+    toolbar.wantsLayer = true
+    toolbar.layer?.backgroundColor = NSColor.black.cgColor
+    toolbar.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(toolbar)
     NSLayoutConstraint.activate([
-      content.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
-      content.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
-      content.topAnchor.constraint(equalTo: view.topAnchor, constant: 18),
-      content.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -16),
-      content.widthAnchor.constraint(equalToConstant: 332),
+      toolbar.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+      toolbar.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+      toolbar.topAnchor.constraint(equalTo: view.topAnchor),
+      toolbar.heightAnchor.constraint(equalToConstant: 56),
     ])
 
     let header = NSStackView()
     header.orientation = .horizontal
     header.alignment = .centerY
-    header.spacing = 10
-    stateDot.wantsLayer = true
-    stateDot.layer?.cornerRadius = 5
-    stateDot.translatesAutoresizingMaskIntoConstraints = false
-    stateDot.widthAnchor.constraint(equalToConstant: 10).isActive = true
-    stateDot.heightAnchor.constraint(equalToConstant: 10).isActive = true
+    header.spacing = 9
+    header.translatesAutoresizingMaskIntoConstraints = false
+    toolbar.addSubview(header)
+    NSLayoutConstraint.activate([
+      header.leadingAnchor.constraint(equalTo: toolbar.leadingAnchor, constant: 18),
+      header.trailingAnchor.constraint(equalTo: toolbar.trailingAnchor, constant: -18),
+      header.centerYAnchor.constraint(equalTo: toolbar.centerYAnchor),
+    ])
 
+    stateDot.wantsLayer = true
+    stateDot.layer?.cornerRadius = 4
+    stateDot.translatesAutoresizingMaskIntoConstraints = false
+    stateDot.widthAnchor.constraint(equalToConstant: 8).isActive = true
+    stateDot.heightAnchor.constraint(equalToConstant: 8).isActive = true
     let titles = NSStackView(views: [titleLabel, subtitleLabel])
     titles.orientation = .vertical
     titles.alignment = .leading
-    titles.spacing = 1
+    titles.spacing = 0
     header.addArrangedSubview(stateDot)
     header.addArrangedSubview(titles)
-    content.addArrangedSubview(header)
+    header.addArrangedSubview(NSView())
+    header.addArrangedSubview(deviceBadge)
 
-    callModeButton.target = self
-    callModeButton.action = #selector(toggleCallMode)
-    callModeButton.bezelStyle = .rounded
-    callModeButton.controlSize = .large
-    callModeButton.font = .systemFont(ofSize: 13, weight: .semibold)
-    content.addArrangedSubview(callModeButton)
-    callModeButton.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
-    content.addArrangedSubview(callModeDetailLabel)
+    let content = NSStackView()
+    content.orientation = .vertical
+    content.alignment = .leading
+    content.spacing = 8
+    content.translatesAutoresizingMaskIntoConstraints = false
+    view.addSubview(content)
+    NSLayoutConstraint.activate([
+      content.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 18),
+      content.trailingAnchor.constraint(equalTo: view.trailingAnchor, constant: -18),
+      content.topAnchor.constraint(equalTo: toolbar.bottomAnchor, constant: 14),
+      content.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -14),
+      content.widthAnchor.constraint(equalToConstant: 352),
+    ])
+
+    let modeRow = NSStackView()
+    modeRow.orientation = .horizontal
+    modeRow.alignment = .centerY
+    modeRow.spacing = 8
+    modeRow.addArrangedSubview(sectionLabel("CALL MODE"))
+    modeRow.addArrangedSubview(NSView())
+    callModeSegment.target = self
+    callModeSegment.action = #selector(selectCallMode(_:))
+    callModeSegment.controlSize = .small
+    callModeSegment.segmentStyle = .rounded
+    callModeSegment.widthAnchor.constraint(equalToConstant: 144).isActive = true
+    modeRow.addArrangedSubview(callModeSegment)
+    content.addArrangedSubview(modeRow)
+    modeRow.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
     content.addArrangedSubview(readinessLabel)
 
     meter.translatesAutoresizingMaskIntoConstraints = false
-    meter.heightAnchor.constraint(equalToConstant: 42).isActive = true
+    meter.heightAnchor.constraint(equalToConstant: 32).isActive = true
     content.addArrangedSubview(meter)
     meter.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
 
@@ -144,7 +170,7 @@ final class CallDeckPopover: NSViewController {
     readings.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
 
     let controls = NSGridView()
-    controls.rowSpacing = 8
+    controls.rowSpacing = 6
     controls.columnSpacing = 8
     let actions: [(MeetingAction, String)] = [
       (.microphone, "mic.fill"),
@@ -161,8 +187,9 @@ final class CallDeckPopover: NSViewController {
       ])
     }
     for column in 0..<2 {
-      controls.column(at: column).width = 162
+      controls.column(at: column).width = 172
     }
+    content.addArrangedSubview(sectionLabel("MEETING"))
     content.addArrangedSubview(controls)
 
     let divider = NSBox()
@@ -241,11 +268,7 @@ final class CallDeckPopover: NSViewController {
     }
     accessibilityButton.isHidden = snapshot.hasAccessibilityPermission
     microphoneButton.isHidden = !snapshot.microphonePermissionNeeded
-    callModeButton.title = snapshot.callMode.title
-    callModeButton.contentTintColor = snapshot.callMode.isActive
-      ? .systemRed
-      : .systemGreen
-    callModeDetailLabel.stringValue = snapshot.callMode.detail
+    callModeSegment.selectedSegment = snapshot.callMode.isActive ? 1 : 0
     readinessLabel.stringValue = snapshot.readinessText
     readinessLabel.textColor = snapshot.readinessColor
     for button in gainButtons {
@@ -303,10 +326,8 @@ final class CallDeckPopover: NSViewController {
     onRequestMicrophonePermission?()
   }
 
-  @objc private func toggleCallMode() {
-    onCallModeChange?(callModeButton.title == CallMode.active.title
-      ? .standby
-      : .active)
+  @objc private func selectCallMode(_ sender: NSSegmentedControl) {
+    onCallModeChange?(sender.selectedSegment == 1 ? .active : .standby)
   }
 
   private func controlButton(
@@ -322,10 +343,11 @@ final class CallDeckPopover: NSViewController {
     )
     button.imagePosition = .imageLeading
     button.imageScaling = .scaleProportionallyDown
-    button.contentTintColor = .controlAccentColor
+    button.contentTintColor = .labelColor
     button.bezelStyle = .rounded
-    button.font = .systemFont(ofSize: 13, weight: .medium)
-    button.heightAnchor.constraint(equalToConstant: 34).isActive = true
+    button.controlSize = .small
+    button.font = .systemFont(ofSize: 12, weight: .medium)
+    button.heightAnchor.constraint(equalToConstant: 32).isActive = true
     actionButtons[action] = button
     return button
   }
@@ -364,6 +386,15 @@ final class CallDeckPopover: NSViewController {
     label.font = font
     label.textColor = color
     label.lineBreakMode = .byTruncatingTail
+    return label
+  }
+
+  private static func badgeLabel(title: String) -> NSTextField {
+    let label = Self.label(
+      font: .systemFont(ofSize: 12, weight: .semibold),
+      color: .systemBlue
+    )
+    label.stringValue = title
     return label
   }
 
