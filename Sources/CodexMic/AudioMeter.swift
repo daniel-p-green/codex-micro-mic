@@ -154,14 +154,12 @@ final class AudioMeter: NSObject,
     guard sampleCount > 0 else { return }
 
     let samples = rawData.assumingMemoryBound(to: Float.self)
-    var sum = Float.zero
+    var peak = Float.zero
     for index in 0..<sampleCount {
-      let value = samples[index]
-      sum += value * value
+      peak = max(peak, abs(samples[index]))
     }
-    let fresh = MeterMath.decibels(
-      sumOfSquares: sum,
-      sampleCount: sampleCount
+    let fresh = MeterMath.peakDecibels(
+      maxAbsoluteSample: peak
     )
 
     let now = Date()

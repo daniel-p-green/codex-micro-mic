@@ -325,11 +325,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       : .imageOnly
     statusItem.button?.toolTip =
       callModeIsLive
-      ? "Codex Micro meter: PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      ? "Codex Micro meter: PodMic peak \(levelText) dBFS, gain \(gainText) dB"
       : "Codex Micro meter paused. Open Call Deck to resume it."
     statusItem.button?.setAccessibilityLabel(
       callModeIsLive
-      ? "PodMic level \(levelText) dBFS, gain \(gainText) dB"
+      ? "PodMic peak \(levelText) dBFS, gain \(gainText) dB"
       : "Codex Micro meter paused"
     )
     updateLighting(levelDB: level, enabled: callModeIsLive)
@@ -426,18 +426,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch band {
     case .silent:
       color = .secondaryLabelColor
-    case .low:
+    case .safe:
       color = .systemGreen
-    case .speaking:
+    case .target:
       color = .systemYellow
-    case .strong, .veryStrong:
+    case .clippingRisk:
       color = .systemRed
     }
 
     guard
       let symbol = NSImage(
         systemSymbolName: "waveform",
-        accessibilityDescription: "Microphone level"
+        accessibilityDescription: "Microphone peak level"
       )
     else {
       return nil

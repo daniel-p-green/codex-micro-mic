@@ -277,8 +277,8 @@ final class CallDeckPopover: NSViewController {
     meter.levelDB = snapshot.meterAvailable ? snapshot.levelDB : MeterMath.floorDB
     meter.isDimmed = !snapshot.meterAvailable
     levelLabel.stringValue = snapshot.meterAvailable
-      ? "LEVEL  \(String(format: "%.0f", snapshot.levelDB)) dBFS"
-      : "LEVEL  PodMic unavailable"
+      ? "PEAK  \(String(format: "%.0f", snapshot.levelDB)) dBFS"
+      : "PEAK  PodMic unavailable"
     gainLabel.stringValue = snapshot.gainDB.map {
       "GAIN  \(String(format: "%.0f", $0)) dB"
     } ?? "GAIN  --"
@@ -444,9 +444,9 @@ private final class CallLevelMeterView: NSView {
   private func meterColor(for levelDB: Float) -> NSColor {
     switch MeterBand.classify(levelDB: levelDB) {
     case .silent: .secondaryLabelColor
-    case .low: .systemGreen
-    case .speaking: .systemYellow
-    case .strong, .veryStrong: .systemRed
+    case .safe: .systemGreen
+    case .target: .systemYellow
+    case .clippingRisk: .systemRed
     }
   }
 }
