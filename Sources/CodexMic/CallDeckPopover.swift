@@ -2,6 +2,8 @@ import AppKit
 import CodexMicCore
 
 final class CallDeckPopover: NSViewController {
+  static let contentSize = NSSize(width: 368, height: 620)
+
   struct Snapshot {
     let meetingApp: MeetingApplication?
     let hasAccessibilityPermission: Bool
@@ -86,11 +88,12 @@ final class CallDeckPopover: NSViewController {
     background.wantsLayer = true
     background.layer?.cornerRadius = 14
     view = background
+    preferredContentSize = Self.contentSize
 
     let content = NSStackView()
     content.orientation = .vertical
     content.alignment = .leading
-    content.spacing = 14
+    content.spacing = 10
     content.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(content)
     NSLayoutConstraint.activate([

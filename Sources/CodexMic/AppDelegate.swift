@@ -131,6 +131,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     statusItem.button?.sendAction(on: [.leftMouseUp])
     popover.behavior = .transient
     popover.contentViewController = callDeck
+    popover.contentSize = CallDeckPopover.contentSize
     callDeck.onMeetingAction = { [weak self] action in
       self?.performMeetingControl(action)
     }
