@@ -29,10 +29,9 @@ The device uses a color-plus-motion meter:
 
 | Color | Input level | Meaning |
 |---|---:|---|
-| Dim gray | Below -70 dBFS | Silence |
-| Blue | -70 to -30 dBFS | Quiet |
-| Green | -30 to -12 dBFS | Healthy speech |
-| Orange | -12 to -3 dBFS | Hot |
+| Off | Below -70 dBFS | Silence |
+| Green | -70 to -12 dBFS | Safe input level |
+| Yellow | -12 to -3 dBFS | Hot |
 | Red | -3 dBFS or higher | Clipping risk |
 
 Brightness changes within each band, and a time-based release keeps speech

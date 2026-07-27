@@ -443,10 +443,10 @@ private final class CallLevelMeterView: NSView {
 
   private func meterColor(for levelDB: Float) -> NSColor {
     switch MeterBand.classify(levelDB: levelDB) {
-    case .silent: .systemGray
-    case .quiet: .systemBlue
+    case .silent: .secondaryLabelColor
+    case .quiet: .systemGreen
     case .healthy: .systemGreen
-    case .hot: .systemOrange
+    case .hot: .systemYellow
     case .clipping: .systemRed
     }
   }

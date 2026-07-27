@@ -76,14 +76,14 @@ do {
 
   let silentLight = LightingMeter.sample(levelDB: -75)
   try require(
-    silentLight == LightingSample(color: LightingMeter.gray, brightness: 0.15),
-    "Silence should be dim gray"
+    silentLight == LightingSample(color: LightingMeter.green, brightness: 0),
+    "Silence should turn the meter lights off"
   )
   let quietLight = LightingMeter.sample(levelDB: -45)
   try require(
-    quietLight.color == LightingMeter.blue
+    quietLight.color == LightingMeter.green
       && quietLight.brightness == 0.55,
-    "Quiet audio should be visibly blue with quantized brightness"
+    "Quiet audio should be visibly green with quantized brightness"
   )
   let healthyLight = LightingMeter.sample(levelDB: -20)
   try require(
@@ -93,9 +93,9 @@ do {
   )
   let hotLight = LightingMeter.sample(levelDB: -6)
   try require(
-    hotLight.color == LightingMeter.orange
+    hotLight.color == LightingMeter.yellow
       && hotLight.brightness == 0.95,
-    "Hot speech should be orange"
+    "Hot speech should be yellow"
   )
   try require(
     LightingMeter.sample(levelDB: -0.5)

@@ -169,10 +169,8 @@ final class CodexMicroLighting {
 
   private func colorName(_ color: Int) -> String {
     switch color {
-    case LightingMeter.gray: "gray"
-    case LightingMeter.blue: "blue"
     case LightingMeter.green: "green"
-    case LightingMeter.orange: "orange"
+    case LightingMeter.yellow: "yellow"
     case LightingMeter.red: "red"
     default: String(format: "#%06X", color)
     }
