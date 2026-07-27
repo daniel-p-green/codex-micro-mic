@@ -12,6 +12,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
   private let statusItem = NSStatusBar.system.statusItem(
     withLength: NSStatusItem.variableLength
   )
+  private let callDeck = CallDeckPopover()
+  private let popover = NSPopover()
   private var controller: AudioDeviceController?
   private var meter: AudioMeter?
   private var deviceLighting: CodexMicroLighting?
@@ -36,7 +38,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationDidFinishLaunching(_ notification: Notification) {
     NSApp.setActivationPolicy(.accessory)
-    buildMenu()
+    configureCallDeck()
     configureAudio()
     timer = Timer.scheduledTimer(
       timeInterval: 0.2,
@@ -56,9 +58,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
   private func configureAudio() {
     do {
-      let controller = try AudioDeviceController()
-      self.controller = controller
-
       let hotKeys = GlobalHotKeys { [weak self] action in
         DispatchQueue.main.async {
           self?.handle(action)
@@ -69,7 +68,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
       logger.notice("Registered meeting keys F13-F17/F20 and gain keys F18/F19")
     } catch {
       hotKeyStatusMessage = error.localizedDescription
-      logger.error("Gain-key setup failed: \(error.localizedDescription)")
+      logger.error("Meeting-key setup failed: \(error.localizedDescription)")
+    }
+
+    do {
+      let controller = try AudioDeviceController()
+      self.controller = controller
+    } catch {
+      audioStatusMessage = error.localizedDescription
+      logger.error("PodMic setup failed: \(error.localizedDescription)")
+      return
     }
 
     guard controller != nil else { return }
@@ -126,161 +134,80 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
   }
 
-  private func buildMenu() {
+  private func configureCallDeck() {
     statusItem.button?.font = .monospacedDigitSystemFont(
       ofSize: NSFont.systemFontSize,
       weight: .regular
     )
+    statusItem.button?.target = self
+    statusItem.button?.action = #selector(toggleCallDeck)
+    statusItem.button?.sendAction(on: [.leftMouseUp])
+    popover.behavior = .transient
+    popover.contentViewController = callDeck
+    callDeck.onMeetingAction = { [weak self] action in
+      self?.performMeetingControl(action)
+    }
+    callDeck.onGainChange = { [weak self] delta in
+      self?.changeGain(by: delta)
+    }
+    callDeck.onDisplayModeChange = { [weak self] mode in
+      self?.setStatusBarDisplayMode(mode)
+    }
+    callDeck.onRequestAccessibility = { [weak self] in
+      _ = self?.meetingController.requestAccessibilityPermission()
+    }
+    callDeck.onRequestMicrophonePermission = { [weak self] in
+      self?.requestMicrophonePermission()
+    }
+    callDeck.onQuit = {
+      NSApplication.shared.terminate(nil)
+    }
+  }
 
-    let menu = NSMenu()
-
-    let device = NSMenuItem(
-      title: AudioDeviceController.podMicName,
-      action: nil,
-      keyEquivalent: ""
-    )
-    device.isEnabled = false
-    device.tag = 100
-    menu.addItem(device)
-
-    let level = NSMenuItem(
-      title: "Level: waiting for microphone",
-      action: nil,
-      keyEquivalent: ""
-    )
-    level.isEnabled = false
-    level.tag = 101
-    menu.addItem(level)
-
-    let gain = NSMenuItem(
-      title: "Gain: --",
-      action: nil,
-      keyEquivalent: ""
-    )
-    gain.isEnabled = false
-    gain.tag = 102
-    menu.addItem(gain)
-
-    let meeting = NSMenuItem(
-      title: "Meeting controls: ready",
-      action: nil,
-      keyEquivalent: ""
-    )
-    meeting.isEnabled = false
-    meeting.tag = 103
-    menu.addItem(meeting)
-
-    let lighting = NSMenuItem(
-      title: "Micro level lighting: off",
-      action: nil,
-      keyEquivalent: ""
-    )
-    lighting.isEnabled = false
-    lighting.tag = 104
-    menu.addItem(lighting)
-
-    menu.addItem(.separator())
-    let displayItem = NSMenuItem(
-      title: "Menu Bar Display",
-      action: nil,
-      keyEquivalent: ""
-    )
-    let displayMenu = NSMenu(title: "Menu Bar Display")
-    for mode in StatusBarDisplayMode.allCases {
-      let item = NSMenuItem(
-        title: mode.title,
-        action: #selector(selectStatusBarDisplay(_:)),
-        keyEquivalent: ""
+  @objc private func toggleCallDeck() {
+    guard let button = statusItem.button else { return }
+    if popover.isShown {
+      popover.performClose(nil)
+    } else {
+      popover.show(
+        relativeTo: button.bounds,
+        of: button,
+        preferredEdge: .minY
       )
-      item.representedObject = mode.rawValue
-      item.state = mode == statusBarDisplayMode ? .on : .off
-      displayMenu.addItem(item)
     }
-    displayItem.submenu = displayMenu
-    menu.addItem(displayItem)
-
-    menu.addItem(.separator())
-    menu.addItem(
-      withTitle: "Gain +1 dB   (F19)",
-      action: #selector(gainUp),
-      keyEquivalent: ""
-    )
-    menu.addItem(
-      withTitle: "Gain -1 dB   (F18)",
-      action: #selector(gainDown),
-      keyEquivalent: ""
-    )
-
-    menu.addItem(.separator())
-    let guidance = NSMenuItem(
-      title: "● Healthy speech target: -12 to -6 dBFS",
-      action: nil,
-      keyEquivalent: ""
-    )
-    guidance.attributedTitle = NSAttributedString(
-      string: guidance.title,
-      attributes: [.foregroundColor: NSColor.systemGreen]
-    )
-    guidance.isEnabled = false
-    menu.addItem(guidance)
-
-    let warning = NSMenuItem(
-      title: "● Orange = hot   ● Red = clipping risk",
-      action: nil,
-      keyEquivalent: ""
-    )
-    warning.isEnabled = false
-    menu.addItem(warning)
-
-    menu.addItem(.separator())
-    menu.addItem(
-      withTitle: "Quit CodexMic",
-      action: #selector(NSApplication.terminate(_:)),
-      keyEquivalent: "q"
-    )
-    statusItem.menu = menu
   }
 
-  @objc private func gainUp() {
-    changeGain(by: 1)
-  }
-
-  @objc private func gainDown() {
-    changeGain(by: -1)
-  }
-
-  @objc private func selectStatusBarDisplay(_ sender: NSMenuItem) {
-    guard
-      let rawValue = sender.representedObject as? String,
-      let mode = StatusBarDisplayMode(rawValue: rawValue)
-    else {
-      return
-    }
-
+  private func setStatusBarDisplayMode(_ mode: StatusBarDisplayMode) {
     statusBarDisplayMode = mode
     UserDefaults.standard.set(
       mode.rawValue,
       forKey: "statusBarDisplayMode"
     )
-    updateStatusBarDisplayMenu()
     refresh()
   }
 
-  private func updateStatusBarDisplayMenu() {
-    guard
-      let displayMenu = statusItem.menu?
-        .items
-        .first(where: { $0.title == "Menu Bar Display" })?
-        .submenu
-    else {
-      return
-    }
-
-    for item in displayMenu.items {
-      item.state =
-        item.representedObject as? String == statusBarDisplayMode.rawValue
-        ? .on
-        : .off
+  private func requestMicrophonePermission() {
+    switch AVCaptureDevice.authorizationStatus(for: .audio) {
+    case .notDetermined:
+      AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+        DispatchQueue.main.async {
+          if granted {
+            self?.startMeter()
+          }
+          self?.refresh()
+        }
+      }
+    case .denied, .restricted:
+      let settingsURL = URL(
+        string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+      )
+      if let settingsURL {
+        NSWorkspace.shared.open(settingsURL)
+      }
+    case .authorized:
+      break
+    @unknown default:
+      break
     }
   }
 
@@ -299,9 +226,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     case .participants:
       performMeetingControl(.participants)
     case .gainDown:
-      gainDown()
+      changeGain(by: -1)
     case .gainUp:
-      gainUp()
+      changeGain(by: 1)
     }
   }
 
@@ -351,28 +278,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     statusItem.button?.setAccessibilityLabel(
       "PodMic level \(levelText) dBFS, gain \(gainText) dB"
     )
-    statusItem.menu?.item(withTag: 101)?.title =
-      "Live level: \(levelText) dBFS"
-    statusItem.menu?.item(withTag: 102)?.title =
-      "Hardware gain: \(gainText) dB"
-    let meetingStatus =
-      meetingController.hasAccessibilityPermission
-      ? (meetingStatusMessage ?? "ready")
-      : "needs Accessibility permission"
-    statusItem.menu?.item(withTag: 103)?.title =
-      "Meeting controls: \(meetingStatus)"
-    statusItem.menu?.item(withTag: 104)?.title =
-      "Micro level lighting: \(lightingStatusMessage)"
     deviceLighting?.start()
     deviceLighting?.update(levelDB: level)
-
-    if let statusMessage = hotKeyStatusMessage ?? audioStatusMessage {
-      statusItem.menu?.item(withTag: 100)?.title =
-        "Error: \(statusMessage)"
-    } else {
-      statusItem.menu?.item(withTag: 100)?.title =
-        AudioDeviceController.podMicName
-    }
+    callDeck.update(with: .init(
+      meetingApp: meetingController.activeApplication,
+      hasAccessibilityPermission: meetingController.hasAccessibilityPermission,
+      levelDB: level,
+      gainDB: gain,
+      lightingStatus: lightingStatusMessage,
+      lastAction: meetingStatusMessage ?? hotKeyStatusMessage ?? audioStatusMessage,
+      meterAvailable: meter != nil,
+      microphonePermissionNeeded: AVCaptureDevice.authorizationStatus(for: .audio) != .authorized,
+      displayMode: statusBarDisplayMode
+    ))
   }
 
   private func waveformImage(for level: Float) -> NSImage? {

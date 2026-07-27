@@ -28,6 +28,19 @@ final class MeetingController {
     AXIsProcessTrusted()
   }
 
+  @discardableResult
+  func requestAccessibilityPermission() -> Bool {
+    let options = [
+      kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true,
+    ] as CFDictionary
+    return AXIsProcessTrustedWithOptions(options)
+  }
+
+  var activeApplication: MeetingApplication? {
+    let bundleID = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
+    return bundleID.flatMap(MeetingApplication.init(bundleIdentifier:))
+  }
+
   func perform(_ control: MeetingControl) throws -> String {
     guard hasAccessibilityPermission else {
       throw MeetingControlError.accessibilityPermission

@@ -12,7 +12,24 @@ macos_dir="$contents_dir/MacOS"
 resources_dir="$contents_dir/Resources"
 
 cd "$repo_root"
-swift build --disable-sandbox
+
+# This Mac currently has a Swift 6.3 compiler paired with an older Command
+# Line Tools SDK. Prefer the installed, coherent Swift 6.0.1 + macOS 15.4 SDK
+# pair when it is available; fall back to the user's selected Swift toolchain.
+swift_command="swift"
+sdk_root=""
+bundled_swift="/Library/Developer/Toolchains/swift-latest.xctoolchain/usr/bin/swift"
+bundled_sdk="/Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk"
+if [[ -x "$bundled_swift" && -d "$bundled_sdk" ]]; then
+  swift_command="$bundled_swift"
+  sdk_root="$bundled_sdk"
+fi
+
+if [[ -n "$sdk_root" ]]; then
+  SDKROOT="$sdk_root" "$swift_command" build --disable-sandbox -j 1
+else
+  "$swift_command" build --disable-sandbox -j 1
+fi
 
 if [[ -d "$app_dir" ]]; then
   rm -rf "$app_dir"
