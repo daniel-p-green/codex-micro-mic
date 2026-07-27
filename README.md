@@ -271,6 +271,11 @@ Input can stay open. CodexMic uses Input's device runtime in a separate helper
 process, so it no longer requires you to quit the Input editor before the
 Codex Micro can display its live level.
 
+### Lighting stays on `connecting`
+
+Quit CodexMic and reopen `/Applications/CodexMic.app`. The lighting helper is
+recreated with the app and should report `live` after it attaches to the Micro.
+
 ### Lighting says `paused; select Meetings profile`
 
 Select profile index `1` on the Micro. The meter deliberately leaves profile

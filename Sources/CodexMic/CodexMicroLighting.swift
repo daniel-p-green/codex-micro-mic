@@ -41,7 +41,6 @@ final class CodexMicroLighting {
       return
     }
 
-    removeService()
     let result = runLaunchctl([
       "submit",
       "-l",
