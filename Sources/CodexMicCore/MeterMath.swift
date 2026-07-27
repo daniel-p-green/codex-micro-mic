@@ -37,23 +37,23 @@ public enum MeterMath {
 
 public enum MeterBand: String {
   case silent
-  case quiet
-  case healthy
-  case hot
-  case clipping
+  case low
+  case speaking
+  case strong
+  case veryStrong
 
   public static func classify(levelDB: Float) -> MeterBand {
     switch levelDB {
-    case ..<(-70):
+    case ..<(-72):
       return .silent
-    case ..<(-30):
-      return .quiet
-    case ..<(-12):
-      return .healthy
-    case ..<(-3):
-      return .hot
+    case ..<(-60):
+      return .low
+    case ..<(-42):
+      return .speaking
+    case ..<(-24):
+      return .strong
     default:
-      return .clipping
+      return .veryStrong
     }
   }
 }

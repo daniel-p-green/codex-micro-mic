@@ -24,28 +24,28 @@ public enum LightingMeter {
     case .silent:
       color = green
       brightness = 0
-    case .quiet:
+    case .low:
       color = green
       brightness = scaled(
         levelDB,
-        input: -70 ... -30,
-        output: 0.35 ... 0.70
+        input: -72 ... -60,
+        output: 0.30 ... 0.55
       )
-    case .healthy:
-      color = green
-      brightness = scaled(
-        levelDB,
-        input: -30 ... -12,
-        output: 0.75 ... 0.90
-      )
-    case .hot:
+    case .speaking:
       color = yellow
       brightness = scaled(
         levelDB,
-        input: -12 ... -3,
-        output: 0.90 ... 1
+        input: -60 ... -42,
+        output: 0.55 ... 0.85
       )
-    case .clipping:
+    case .strong:
+      color = red
+      brightness = scaled(
+        levelDB,
+        input: -42 ... -24,
+        output: 0.85 ... 1
+      )
+    case .veryStrong:
       color = red
       brightness = 1
     }

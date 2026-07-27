@@ -426,13 +426,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     switch band {
     case .silent:
       color = .secondaryLabelColor
-    case .quiet:
+    case .low:
       color = .systemGreen
-    case .healthy:
-      color = .systemGreen
-    case .hot:
+    case .speaking:
       color = .systemYellow
-    case .clipping:
+    case .strong, .veryStrong:
       color = .systemRed
     }
 

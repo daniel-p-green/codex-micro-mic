@@ -46,10 +46,10 @@ The device uses a color-plus-motion meter:
 
 | Color | Input level | Meaning |
 |---|---:|---|
-| Off | Below -70 dBFS | Silence |
-| Green | -70 to -12 dBFS | Safe input level |
-| Yellow | -12 to -3 dBFS | Hot |
-| Red | -3 dBFS or higher | Clipping risk |
+| Off | Below -72 dBFS | Silence |
+| Green | -72 to -60 dBFS | Low input |
+| Yellow | -60 to -42 dBFS | Speaking |
+| Red | -42 dBFS or higher | Strong input |
 
 Brightness changes within each band, and a time-based release keeps speech
 peaks visible long enough for the physical device to show them.
@@ -72,8 +72,9 @@ are not using the mic.
 4. Open Call Deck to show the exact dBFS reading, hardware gain, and the
    device's acknowledged color and brightness.
 
-Yellow indicates a hot signal and red indicates clipping risk. Do not
-intentionally clip the microphone just to demonstrate red.
+Yellow indicates ordinary speaking activity and red indicates a strong input.
+The colors are calibrated for the PodMic's observed RMS range; use the exact
+dBFS reading in Call Deck when diagnosing clipping.
 
 ### Call Deck and menu-bar display
 
