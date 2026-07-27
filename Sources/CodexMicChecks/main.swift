@@ -15,15 +15,13 @@ func require(
 }
 
 do {
-  let fullScale = MeterMath.decibels(
-    sumOfSquares: 4,
-    sampleCount: 4
+  let fullScale = MeterMath.peakDecibels(
+    maxAbsoluteSample: 1
   )
   try require(abs(fullScale) < 0.001, "Full scale should be 0 dBFS")
 
-  let halfScale = MeterMath.decibels(
-    sumOfSquares: 1,
-    sampleCount: 4
+  let halfScale = MeterMath.peakDecibels(
+    maxAbsoluteSample: 0.5
   )
   try require(
     abs(halfScale - -6.0206) < 0.001,
@@ -31,7 +29,7 @@ do {
   )
 
   try require(
-    MeterMath.decibels(sumOfSquares: 0, sampleCount: 4) == MeterMath.floorDB,
+    MeterMath.peakDecibels(maxAbsoluteSample: 0) == MeterMath.floorDB,
     "Silence should use the meter floor"
   )
 
@@ -54,20 +52,16 @@ do {
     "-75 dBFS should be silent"
   )
   try require(
-    MeterBand.classify(levelDB: -65) == .low,
-    "-65 dBFS should be a low green signal"
+    MeterBand.classify(levelDB: -30) == .safe,
+    "-30 dBFS peak should be safe and green"
   )
   try require(
-    MeterBand.classify(levelDB: -50) == .speaking,
-    "-50 dBFS should be a yellow speaking signal"
+    MeterBand.classify(levelDB: -12) == .target,
+    "-12 dBFS peak should be in the yellow target range"
   )
   try require(
-    MeterBand.classify(levelDB: -35) == .strong,
-    "-35 dBFS should be a strong red signal"
-  )
-  try require(
-    MeterBand.classify(levelDB: -12) == .veryStrong,
-    "-12 dBFS should be a very strong red signal"
+    MeterBand.classify(levelDB: -3) == .clippingRisk,
+    "-3 dBFS peak should warn about clipping risk"
   )
 
   let silentLight = LightingMeter.sample(levelDB: -75)
@@ -75,28 +69,23 @@ do {
     silentLight == LightingSample(color: LightingMeter.green, brightness: 0),
     "Silence should turn the meter lights off"
   )
-  let quietLight = LightingMeter.sample(levelDB: -66)
+  let quietLight = LightingMeter.sample(levelDB: -39)
   try require(
     quietLight.color == LightingMeter.green
-      && quietLight.brightness == 0.45,
-    "Low audio should be visibly green with quantized brightness"
+      && quietLight.brightness == 0.55,
+    "Safe peaks should be visibly green with quantized brightness"
   )
-  let healthyLight = LightingMeter.sample(levelDB: -51)
+  let healthyLight = LightingMeter.sample(levelDB: -12)
   try require(
     healthyLight.color == LightingMeter.yellow
-      && healthyLight.brightness == 0.7,
-    "Speaking audio should be yellow"
+      && healthyLight.brightness == 0.95,
+    "Target voice peaks should be yellow"
   )
-  let hotLight = LightingMeter.sample(levelDB: -33)
+  let hotLight = LightingMeter.sample(levelDB: -3)
   try require(
     hotLight.color == LightingMeter.red
-      && hotLight.brightness == 0.95,
-    "Strong audio should be red"
-  )
-  try require(
-    LightingMeter.sample(levelDB: -12)
-      == LightingSample(color: LightingMeter.red, brightness: 1),
-    "Very strong audio should be full-brightness red"
+      && hotLight.brightness == 1,
+    "Clipping-risk peaks should be full-brightness red"
   )
   try require(
     MeterMath.envelope(
