@@ -145,6 +145,13 @@ do {
   )
 
   try require(
+    MeetingAction.microphone.controlTitle == "Toggle mic"
+      && MeetingAction.microphone.sentFeedback(in: .zoom)
+        == "Toggle mic sent to Zoom · app state unverified",
+    "Meeting controls should name toggles honestly and avoid claiming app state"
+  )
+
+  try require(
     MeetingApplication(
       bundleIdentifier:
         "com.google.Chrome.app.kjgfgldnnfoeklkmfkjfagphfepbbdan"

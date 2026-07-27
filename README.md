@@ -63,12 +63,20 @@ not show a fake muted/unmuted state.
 
 ### Call Mode
 
-CodexMic starts in **Standby**. Its menu-bar icon stays still, and it does not
-send a live level to the Micro. Select **Start Call Mode** when a meeting
-begins; the menu-bar waveform and Micro lighting then become live. Pressing the
-physical Microphone control during Zoom or Google Meet also arms Call Mode, so
-the first meeting action is enough to begin metering. End Call Mode when the
-meeting is over to return to a quiet desktop.
+CodexMic starts in **Standby**. Its menu-bar icon stays still, the microphone
+meter is stopped, and no live level is sent to the Micro. Select **Start Call
+Mode** when a meeting begins; CodexMic then requests microphone permission if
+needed, starts the meter, and makes the menu-bar waveform and Micro lighting
+live. Pressing the physical Microphone control during Zoom or Google Meet also
+arms Call Mode, so the first meeting action is enough to begin metering. End
+Call Mode when the meeting is over to stop metering and return to a quiet
+desktop.
+
+Call Deck includes a compact readiness line. It calls out missing Accessibility
+approval, a missing microphone meter, a wrong Micro profile, or the need to
+bring Zoom or the dedicated Google Meet app forward. When it sends a meeting
+shortcut, it says so explicitly but does not pretend to know the application's
+resulting mute or camera state.
 
 Use **Menu Bar Display** in Call Deck to choose:
 
@@ -234,6 +242,11 @@ node --check support/codex-micro-lighting-service.js
 plutil -lint support/Info.plist
 codesign --verify --deep --strict .build/CodexMic.app
 ```
+
+If macOS File Provider adds Finder metadata to the copied `.build` bundle, the
+packager reports a warning after verifying its clean staging bundle. That is a
+local workspace metadata condition, not a replacement for a successful clean
+bundle verification.
 
 The menu should report:
 

@@ -2,6 +2,8 @@ import AppKit
 import CodexMicCore
 
 final class CallDeckPopover: NSViewController {
+  static let contentSize = NSSize(width: 368, height: 620)
+
   struct Snapshot {
     let meetingApp: MeetingApplication?
     let hasAccessibilityPermission: Bool
@@ -13,6 +15,8 @@ final class CallDeckPopover: NSViewController {
     let microphonePermissionNeeded: Bool
     let callMode: CallMode
     let displayMode: StatusBarDisplayMode
+    let readinessText: String
+    let readinessColor: NSColor
   }
 
   var onMeetingAction: ((MeetingAction) -> Void)?
@@ -59,6 +63,10 @@ final class CallDeckPopover: NSViewController {
     font: .systemFont(ofSize: 11, weight: .medium),
     color: .secondaryLabelColor
   )
+  private let readinessLabel = CallDeckPopover.label(
+    font: .systemFont(ofSize: 11, weight: .semibold),
+    color: .secondaryLabelColor
+  )
   private let accessibilityButton = NSButton(
     title: "Enable meeting controls…",
     target: nil,
@@ -80,11 +88,12 @@ final class CallDeckPopover: NSViewController {
     background.wantsLayer = true
     background.layer?.cornerRadius = 14
     view = background
+    preferredContentSize = Self.contentSize
 
     let content = NSStackView()
     content.orientation = .vertical
     content.alignment = .leading
-    content.spacing = 14
+    content.spacing = 10
     content.translatesAutoresizingMaskIntoConstraints = false
     view.addSubview(content)
     NSLayoutConstraint.activate([
@@ -121,6 +130,7 @@ final class CallDeckPopover: NSViewController {
     content.addArrangedSubview(callModeButton)
     callModeButton.widthAnchor.constraint(equalTo: content.widthAnchor).isActive = true
     content.addArrangedSubview(callModeDetailLabel)
+    content.addArrangedSubview(readinessLabel)
 
     meter.translatesAutoresizingMaskIntoConstraints = false
     meter.heightAnchor.constraint(equalToConstant: 42).isActive = true
@@ -136,13 +146,13 @@ final class CallDeckPopover: NSViewController {
     let controls = NSGridView()
     controls.rowSpacing = 8
     controls.columnSpacing = 8
-    let actions: [(MeetingAction, String, String)] = [
-      (.microphone, "Mic", "mic.fill"),
-      (.camera, "Camera", "video.fill"),
-      (.share, "Share", "rectangle.on.rectangle"),
-      (.chat, "Chat", "message.fill"),
-      (.hand, "Hand", "hand.raised.fill"),
-      (.participants, "People", "person.2.fill"),
+    let actions: [(MeetingAction, String)] = [
+      (.microphone, "mic.fill"),
+      (.camera, "video.fill"),
+      (.share, "rectangle.on.rectangle"),
+      (.chat, "message.fill"),
+      (.hand, "hand.raised.fill"),
+      (.participants, "person.2.fill"),
     ]
     for row in stride(from: 0, to: actions.count, by: 2) {
       controls.addRow(with: [
@@ -236,6 +246,8 @@ final class CallDeckPopover: NSViewController {
       ? .systemRed
       : .systemGreen
     callModeDetailLabel.stringValue = snapshot.callMode.detail
+    readinessLabel.stringValue = snapshot.readinessText
+    readinessLabel.textColor = snapshot.readinessColor
     for button in gainButtons {
       button.isEnabled = snapshot.meterAvailable
     }
@@ -298,9 +310,10 @@ final class CallDeckPopover: NSViewController {
   }
 
   private func controlButton(
-    for definition: (MeetingAction, String, String)
+    for definition: (MeetingAction, String)
   ) -> NSButton {
-    let (action, title, symbol) = definition
+    let (action, symbol) = definition
+    let title = action.controlTitle
     let button = NSButton(title: title, target: self, action: #selector(performMeetingAction(_:)))
     button.identifier = NSUserInterfaceItemIdentifier(action.rawValue)
     button.image = NSImage(

@@ -50,7 +50,7 @@ final class MeetingController {
       throw MeetingControlError.unsupportedControl(control, app.name)
     }
     post(shortcut)
-    return "\(control.rawValue): \(app.name)"
+    return control.sentFeedback(in: app)
   }
 
   private func frontmostMeetingApp() throws -> MeetingApplication {

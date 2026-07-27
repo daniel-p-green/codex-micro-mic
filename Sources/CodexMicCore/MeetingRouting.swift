@@ -36,6 +36,21 @@ public enum MeetingAction: String, CaseIterable {
   case share = "Share screen"
   case hand = "Raise/lower hand"
   case participants = "Participants"
+
+  public var controlTitle: String {
+    switch self {
+    case .microphone: "Toggle mic"
+    case .camera: "Toggle camera"
+    case .chat: "Chat"
+    case .share: "Share"
+    case .hand: "Hand"
+    case .participants: "People"
+    }
+  }
+
+  public func sentFeedback(in app: MeetingApplication) -> String {
+    "\(controlTitle) sent to \(app.name) · app state unverified"
+  }
 }
 
 public enum MeetingKey: String {
